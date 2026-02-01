@@ -2,7 +2,10 @@
  * LMS Application JavaScript
  */
 
-const API_BASE = '../api';
+// Determine API base path based on current location
+const path = window.location.pathname;
+const isInSubfolder = path.includes('/admin/') || path.includes('/faculty/') || path.includes('/student/');
+const API_BASE = isInSubfolder ? '../../api' : '../api';
 
 // =====================================================
 // API HELPERS
@@ -65,7 +68,11 @@ async function login(email, password) {
 async function logout() {
     const result = await apiCall('auth.php', 'logout');
     if (result.success) {
-        window.location.href = 'login.html';
+        // Determine the base path based on current location
+        const path = window.location.pathname;
+        const isInSubfolder = path.includes('/admin/') || path.includes('/faculty/') || path.includes('/student/');
+        const prefix = isInSubfolder ? '../' : '';
+        window.location.href = prefix + 'login.html';
     }
     return result;
 }
@@ -332,13 +339,18 @@ function setUrlParam(param, value) {
 async function requireAuth(allowedRoles = null) {
     const user = await checkAuth();
     
+    // Determine the base path based on current location
+    const path = window.location.pathname;
+    const isInSubfolder = path.includes('/admin/') || path.includes('/faculty/') || path.includes('/student/');
+    const prefix = isInSubfolder ? '../' : '';
+    
     if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = prefix + 'login.html';
         return null;
     }
     
     if (allowedRoles && !allowedRoles.includes(user.role)) {
-        window.location.href = getDashboardUrl(user.role);
+        window.location.href = prefix + getDashboardUrl(user.role);
         return null;
     }
     
@@ -346,11 +358,16 @@ async function requireAuth(allowedRoles = null) {
 }
 
 function getDashboardUrl(role) {
+    // Check if we're already in a role subfolder
+    const path = window.location.pathname;
+    const isInSubfolder = path.includes('/admin/') || path.includes('/faculty/') || path.includes('/student/');
+    const prefix = isInSubfolder ? '../' : '';
+    
     switch (role) {
-        case 'admin': return 'admin/dashboard.html';
-        case 'faculty': return 'faculty/dashboard.html';
-        case 'student': return 'student/dashboard.html';
-        default: return 'login.html';
+        case 'admin': return prefix + 'admin/dashboard.html';
+        case 'faculty': return prefix + 'faculty/dashboard.html';
+        case 'student': return prefix + 'student/dashboard.html';
+        default: return prefix + 'login.html';
     }
 }
 
