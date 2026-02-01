@@ -52,7 +52,13 @@ http://localhost/lms-core/public/
 
 ## Default Accounts
 
-After importing the database, these accounts are available:
+After importing the database, **run the password fix script**:
+
+1. Open in browser: `http://localhost/lms-core/fix-passwords.php`
+2. This sets all passwords to: `Admin@123`
+3. **Delete the fix-passwords.php file after use!**
+
+Then login with:
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -60,8 +66,6 @@ After importing the database, these accounts are available:
 | Faculty | ali@murad.phd | Admin@123 |
 | Faculty | sarah@university.edu | Admin@123 |
 | Student | student1@test.com | Admin@123 |
-
-**Note**: The default password hash is for "Admin@123". Generate new hashes for production.
 
 ## API Documentation
 
