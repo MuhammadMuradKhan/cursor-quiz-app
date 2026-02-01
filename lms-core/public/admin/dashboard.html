@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Admin</h1>
+        <nav>
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="users-manage.html">Users</a>
+            <a href="feedback-view.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <h2 style="margin-bottom: 20px;">Welcome, <span id="userName">Admin</span>!</h2>
+        
+        <!-- Stats -->
+        <div class="row">
+            <div class="col-4">
+                <div class="card stat-card">
+                    <div class="number" id="totalUsers">-</div>
+                    <div class="label">Total Users</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card stat-card">
+                    <div class="number" id="totalCourses">-</div>
+                    <div class="label">Total Courses</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card stat-card">
+                    <div class="number" id="totalStudents">-</div>
+                    <div class="label">Students</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Quick Actions</h3>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="users-manage.html" class="btn btn-primary">Manage Users</a>
+                <a href="feedback-view.html" class="btn btn-secondary">View Feedback</a>
+                <button class="btn btn-success" onclick="showCreateFacultyModal()">Create Faculty Account</button>
+            </div>
+        </div>
+        
+        <!-- All Courses -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">All Courses</h3>
+            </div>
+            <div id="coursesList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Faculty Modal -->
+    <div id="createFacultyModal" class="modal-overlay hidden" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Create Faculty Account</h3>
+                <button class="modal-close" onclick="hideCreateFacultyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createFacultyForm">
+                    <div class="form-group">
+                        <label for="facultyName">Full Name *</label>
+                        <input type="text" id="facultyName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="facultyEmail">University Email *</label>
+                        <input type="email" id="facultyEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="facultyPassword">Password *</label>
+                        <input type="password" id="facultyPassword" class="form-control" minlength="8" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideCreateFacultyModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createFacultyAccount()">Create Account</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['admin']);
+            if (!currentUser) return;
+            
+            document.getElementById('userName').textContent = currentUser.name;
+            loadStats();
+            loadCourses();
+        })();
+        
+        async function loadStats() {
+            // Load users
+            const usersResult = await getUsers();
+            if (usersResult.success) {
+                const users = usersResult.data;
+                document.getElementById('totalUsers').textContent = users.length;
+                document.getElementById('totalStudents').textContent = users.filter(u => u.role === 'student').length;
+            }
+            
+            // Load courses
+            const coursesResult = await getCourses();
+            if (coursesResult.success) {
+                document.getElementById('totalCourses').textContent = coursesResult.data.length;
+            }
+        }
+        
+        async function loadCourses() {
+            const container = document.getElementById('coursesList');
+            const result = await getCourses();
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load courses</p>';
+                return;
+            }
+            
+            const courses = result.data;
+            
+            if (courses.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No courses yet</p>';
+                return;
+            }
+            
+            let html = '<table class="table"><thead><tr><th>Course</th><th>Code</th><th>Faculty</th><th>Students</th><th>Status</th></tr></thead><tbody>';
+            
+            for (const course of courses) {
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(course.name)}</strong></td>
+                        <td>${escapeHtml(course.code)}</td>
+                        <td>${escapeHtml(course.faculty_name)}</td>
+                        <td>
+                            <span class="badge badge-success">${course.enrolled_count || 0} enrolled</span>
+                            ${course.pending_count > 0 ? `<span class="badge badge-warning">${course.pending_count} pending</span>` : ''}
+                        </td>
+                        <td>${course.deleted_at ? '<span class="badge badge-danger">Deleted</span>' : '<span class="badge badge-success">Active</span>'}</td>
+                    </tr>
+                `;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function showCreateFacultyModal() {
+            document.getElementById('createFacultyModal').classList.remove('hidden');
+        }
+        
+        function hideCreateFacultyModal() {
+            document.getElementById('createFacultyModal').classList.add('hidden');
+        }
+        
+        function closeModal(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                hideCreateFacultyModal();
+            }
+        }
+        
+        async function createFacultyAccount() {
+            const data = {
+                name: document.getElementById('facultyName').value,
+                email: document.getElementById('facultyEmail').value,
+                password: document.getElementById('facultyPassword').value,
+                role: 'faculty'
+            };
+            
+            const result = await createUser(data);
+            
+            if (result.success) {
+                hideCreateFacultyModal();
+                showAlert('Faculty account created successfully!', 'success');
+                document.getElementById('createFacultyForm').reset();
+                loadStats();
+            } else {
+                showAlert(result.message, 'danger');
+            }
+        }
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+    </script>
+</body>
+</html>

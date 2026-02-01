@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Student</h1>
+        <nav>
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="feedback.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <h2 style="margin-bottom: 20px;">Welcome, <span id="userName">Student</span>!</h2>
+        
+        <!-- My Courses -->
+        <div class="card">
+            <div class="card-header flex-between">
+                <h3 class="card-title">My Courses</h3>
+            </div>
+            <div id="coursesList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['student']);
+            if (!currentUser) return;
+            
+            document.getElementById('userName').textContent = currentUser.name;
+            loadCourses();
+        })();
+        
+        async function loadCourses() {
+            const container = document.getElementById('coursesList');
+            const result = await getMyEnrollments();
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load courses</p>';
+                return;
+            }
+            
+            const courses = result.data;
+            
+            if (courses.length === 0) {
+                container.innerHTML = '<p style="padding: 20px; color: #666;">No courses yet. Use an invite link to join a course.</p>';
+                return;
+            }
+            
+            let html = '<div class="row">';
+            
+            for (const course of courses) {
+                const statusBadge = course.status === 'approved' 
+                    ? '<span class="badge badge-success">Approved</span>'
+                    : '<span class="badge badge-warning">Pending Approval</span>';
+                
+                html += `
+                    <div class="col-4">
+                        <div class="course-card">
+                            <img src="${course.thumbnail || '../assets/img/course-default.png'}" alt="${course.course_name}" 
+                                 onerror="this.style.background='#ecf0f1'">
+                            <div class="card-body">
+                                <h3>${escapeHtml(course.course_name)}</h3>
+                                <p>${escapeHtml(course.course_code)} - ${escapeHtml(course.faculty_name)}</p>
+                                ${statusBadge}
+                                ${course.status === 'approved' ? `
+                                    <div style="margin-top: 10px;">
+                                        <a href="course.html?id=${course.course_id}" class="btn btn-primary btn-sm">View Course</a>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        body { background: #f5f5f5; }
+        .quiz-header { 
+            position: sticky; 
+            top: 0; 
+            background: white; 
+            padding: 15px; 
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-header">
+        <div class="container flex-between">
+            <h2 id="quizTitle">Quiz</h2>
+            <div class="timer" id="timer">--:--</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <div id="quizContent">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading quiz...</p>
+            </div>
+        </div>
+        
+        <div id="submitSection" class="hidden card">
+            <p>You have answered <span id="answeredCount">0</span> of <span id="totalCount">0</span> questions.</p>
+            <button class="btn btn-success btn-block" onclick="submitQuizAnswers()">Submit Quiz</button>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let quizId = null;
+        let attemptId = null;
+        let questions = [];
+        let answers = {};
+        let timeRemaining = 0;
+        let timerInterval = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['student']);
+            if (!currentUser) return;
+            
+            quizId = getUrlParam('id');
+            if (!quizId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            await loadQuiz();
+            
+            // Initialize tab switch detection
+            initTabSwitchDetection(handleViolation);
+        })();
+        
+        async function loadQuiz() {
+            const result = await startQuiz(quizId);
+            
+            if (!result.success) {
+                document.getElementById('quizContent').innerHTML = `
+                    <div class="card">
+                        <div class="alert alert-danger">${result.message}</div>
+                        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            attemptId = result.data.attempt_id;
+            questions = result.data.questions;
+            timeRemaining = result.data.time_remaining_seconds;
+            
+            document.getElementById('quizTitle').textContent = result.data.quiz_title;
+            
+            renderQuestions();
+            startTimer();
+            
+            document.getElementById('submitSection').classList.remove('hidden');
+            document.getElementById('totalCount').textContent = questions.length;
+        }
+        
+        function renderQuestions() {
+            const container = document.getElementById('quizContent');
+            let html = '';
+            
+            questions.forEach((q, index) => {
+                html += `
+                    <div class="quiz-question" id="question-${index}">
+                        <div class="question-number">Question ${index + 1} of ${questions.length}</div>
+                        <div class="question-content">
+                `;
+                
+                // Render question based on type
+                if (q.type === 'image') {
+                    html += `<img src="${q.content}" alt="Question image">`;
+                    if (q.question_text) {
+                        html += `<p>${q.question_text}</p>`;
+                    }
+                } else if (q.type === 'html') {
+                    html += q.content;
+                    if (q.question_text) {
+                        html += `<p>${q.question_text}</p>`;
+                    }
+                } else {
+                    html += `<p>${escapeHtml(q.content)}</p>`;
+                }
+                
+                html += '</div><div class="options">';
+                
+                // Render options
+                q.options.forEach((opt, optIndex) => {
+                    html += `
+                        <label class="quiz-option" onclick="selectOption(${index}, ${optIndex})">
+                            <input type="radio" name="q${index}" value="${optIndex}">
+                    `;
+                    
+                    if (opt.type === 'image') {
+                        html += `<img src="${opt.content}" alt="Option ${optIndex + 1}" style="max-height: 100px;">`;
+                    } else if (opt.type === 'html') {
+                        html += opt.content;
+                    } else {
+                        html += escapeHtml(opt.content);
+                    }
+                    
+                    html += '</label>';
+                });
+                
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function selectOption(questionIndex, optionIndex) {
+            // Update answers
+            answers[questionIndex] = optionIndex;
+            
+            // Update UI
+            const questionDiv = document.getElementById(`question-${questionIndex}`);
+            questionDiv.querySelectorAll('.quiz-option').forEach((opt, i) => {
+                opt.classList.toggle('selected', i === optionIndex);
+            });
+            
+            // Update count
+            document.getElementById('answeredCount').textContent = Object.keys(answers).length;
+        }
+        
+        function startTimer() {
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    submitQuizAnswers(false, 'Time expired');
+                }
+            }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const display = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            const timerEl = document.getElementById('timer');
+            timerEl.textContent = display;
+            
+            // Warning colors
+            timerEl.classList.remove('warning', 'danger');
+            if (timeRemaining <= 60) {
+                timerEl.classList.add('danger');
+            } else if (timeRemaining <= 180) {
+                timerEl.classList.add('warning');
+            }
+        }
+        
+        async function handleViolation() {
+            stopTabSwitchDetection();
+            clearInterval(timerInterval);
+            
+            await submitQuizAnswers(true, 'Tab switch violation');
+        }
+        
+        async function submitQuizAnswers(isViolation = false, reason = null) {
+            // Stop timer and detection
+            clearInterval(timerInterval);
+            stopTabSwitchDetection();
+            
+            // Build answers array
+            const answersArray = [];
+            for (let i = 0; i < questions.length; i++) {
+                answersArray.push(answers[i] !== undefined ? answers[i] : null);
+            }
+            
+            const result = await submitQuiz(attemptId, answersArray, isViolation, reason);
+            
+            if (result.success) {
+                if (isViolation) {
+                    alert('Quiz submitted due to violation. You received zero marks.');
+                }
+                window.location.href = `quiz-result.html?id=${attemptId}`;
+            } else {
+                alert('Failed to submit quiz: ' + result.message);
+            }
+        }
+        
+        // Prevent back/refresh
+        window.onbeforeunload = function() {
+            return 'Are you sure you want to leave? Your quiz will be submitted.';
+        };
+    </script>
+</body>
+</html>

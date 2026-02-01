@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Course - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Faculty</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <a href="dashboard.html" style="color: #666;">&larr; Back to Dashboard</a>
+        
+        <div class="card mt-20">
+            <h2 id="courseName">Loading...</h2>
+            <p id="courseInfo" style="color: #666;"></p>
+            <div id="inviteSection" style="margin-top: 10px;"></div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="card">
+            <div style="border-bottom: 1px solid #ddd; margin-bottom: 20px;">
+                <button class="btn btn-secondary" onclick="showTab('students')" id="tab-students">Students</button>
+                <button class="btn" onclick="showTab('content')" id="tab-content">Content</button>
+                <button class="btn" onclick="showTab('questions')" id="tab-questions">Questions</button>
+                <button class="btn" onclick="showTab('quizzes')" id="tab-quizzes">Quizzes</button>
+                <button class="btn" onclick="showTab('results')" id="tab-results">Results</button>
+            </div>
+            
+            <!-- Students Tab -->
+            <div id="students-tab">
+                <h3>Pending Approvals</h3>
+                <div id="pendingList" style="margin-bottom: 20px;"></div>
+                
+                <h3>Enrolled Students</h3>
+                <div id="enrolledList"></div>
+            </div>
+            
+            <!-- Content Tab -->
+            <div id="content-tab" class="hidden">
+                <div id="contentHierarchy"></div>
+            </div>
+            
+            <!-- Questions Tab -->
+            <div id="questions-tab" class="hidden">
+                <div class="form-group">
+                    <label>Select Concept:</label>
+                    <select id="questionConceptSelect" class="form-control" onchange="loadQuestions()">
+                        <option value="">-- Select Concept --</option>
+                    </select>
+                </div>
+                <div id="questionsList"></div>
+            </div>
+            
+            <!-- Quizzes Tab -->
+            <div id="quizzes-tab" class="hidden">
+                <div class="form-group">
+                    <label>Select Concept:</label>
+                    <select id="quizConceptSelect" class="form-control" onchange="loadQuizzes()">
+                        <option value="">-- Select Concept --</option>
+                    </select>
+                </div>
+                <div id="quizzesList"></div>
+            </div>
+            
+            <!-- Results Tab -->
+            <div id="results-tab" class="hidden">
+                <div id="leaderboardList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let courseId = null;
+        let courseData = null;
+        let contentData = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['faculty', 'admin']);
+            if (!currentUser) return;
+            
+            courseId = getUrlParam('id');
+            if (!courseId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            await loadCourseData();
+            loadEnrollments();
+            loadContentHierarchy();
+            loadLeaderboard();
+        })();
+        
+        function showTab(tab) {
+            document.querySelectorAll('[id$="-tab"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tab + '-tab').classList.remove('hidden');
+            
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.remove('btn-secondary'));
+            document.getElementById('tab-' + tab).classList.add('btn-secondary');
+        }
+        
+        async function loadCourseData() {
+            const result = await getCourse(courseId);
+            
+            if (!result.success) {
+                showAlert('Failed to load course', 'danger');
+                return;
+            }
+            
+            courseData = result.data;
+            
+            document.getElementById('courseName').textContent = courseData.name;
+            document.getElementById('courseInfo').textContent = `${courseData.code} | ${courseData.enrolled_count || 0} students enrolled`;
+            
+            const inviteUrl = window.location.origin + '/lms-core/public/register.html?invite=' + courseData.invite_code;
+            document.getElementById('inviteSection').innerHTML = `
+                <strong>Invite Link:</strong> 
+                <input type="text" value="${inviteUrl}" class="form-control" style="width: auto; display: inline;" readonly onclick="this.select()">
+                <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${inviteUrl}'); alert('Copied!')">Copy</button>
+            `;
+        }
+        
+        async function loadEnrollments() {
+            // Load pending
+            const pendingResult = await getEnrollments(courseId, 'pending');
+            const pendingContainer = document.getElementById('pendingList');
+            
+            if (pendingResult.success && pendingResult.data.length > 0) {
+                let html = '<table class="table"><thead><tr><th>Name</th><th>Roll No</th><th>Email</th><th>Actions</th></tr></thead><tbody>';
+                
+                for (const e of pendingResult.data) {
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(e.student_name)}</td>
+                            <td>${escapeHtml(e.roll_no || '-')}</td>
+                            <td>${escapeHtml(e.student_email)}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="approveStudent(${e.id})">Approve</button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectStudent(${e.id})">Reject</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+                pendingContainer.innerHTML = html;
+            } else {
+                pendingContainer.innerHTML = '<p style="color: #666;">No pending approvals</p>';
+            }
+            
+            // Load enrolled
+            const enrolledResult = await getEnrollments(courseId, 'approved');
+            const enrolledContainer = document.getElementById('enrolledList');
+            
+            if (enrolledResult.success && enrolledResult.data.length > 0) {
+                let html = '<table class="table"><thead><tr><th>Name</th><th>Roll No</th><th>Email</th><th>Actions</th></tr></thead><tbody>';
+                
+                for (const e of enrolledResult.data) {
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(e.student_name)}</td>
+                            <td>${escapeHtml(e.roll_no || '-')}</td>
+                            <td>${escapeHtml(e.student_email)}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="removeStudent(${e.id})">Remove</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+                enrolledContainer.innerHTML = html;
+            } else {
+                enrolledContainer.innerHTML = '<p style="color: #666;">No enrolled students</p>';
+            }
+        }
+        
+        async function approveStudent(enrollmentId) {
+            const result = await approveEnrollment(enrollmentId);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadEnrollments();
+        }
+        
+        async function rejectStudent(enrollmentId) {
+            if (!confirm('Are you sure you want to reject this student?')) return;
+            const result = await rejectEnrollment(enrollmentId);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadEnrollments();
+        }
+        
+        async function removeStudent(enrollmentId) {
+            if (!confirm('Are you sure you want to remove this student from the course?')) return;
+            const result = await removeEnrollment(enrollmentId);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadEnrollments();
+        }
+        
+        async function loadContentHierarchy() {
+            const container = document.getElementById('contentHierarchy');
+            const result = await getContentHierarchy(courseId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load content</p>';
+                return;
+            }
+            
+            contentData = result.data;
+            
+            // Populate concept selects
+            populateConceptSelects();
+            
+            let html = '';
+            
+            for (const week of contentData) {
+                html += `
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span><strong>Week ${week.week_number}:</strong> ${escapeHtml(week.title || 'No Title')}</span>
+                            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addLecture(${week.id})">+ Lecture</button>
+                        </div>
+                        <div class="accordion-content">
+                `;
+                
+                if (week.lectures && week.lectures.length > 0) {
+                    for (const lecture of week.lectures) {
+                        html += `
+                            <div style="margin-left: 20px; padding: 10px; border-left: 2px solid #3498db; margin-bottom: 10px;">
+                                <div class="flex-between">
+                                    <strong>${escapeHtml(lecture.title)}</strong>
+                                    <button class="btn btn-sm" onclick="addConcept(${lecture.id})">+ Concept</button>
+                                </div>
+                        `;
+                        
+                        if (lecture.concepts && lecture.concepts.length > 0) {
+                            for (const concept of lecture.concepts) {
+                                html += `
+                                    <div style="margin-left: 20px; padding: 10px; background: #f8f9fa; margin-top: 5px; border-radius: 4px;">
+                                        <div class="flex-between">
+                                            <strong>${escapeHtml(concept.title)}</strong>
+                                            <button class="btn btn-sm" onclick="addMaterial(${concept.id})">+ Material</button>
+                                        </div>
+                                        <div style="font-size: 0.9rem; color: #666;">
+                                            ${concept.material_count || 0} materials | ${concept.question_count || 0} questions | ${concept.quiz_count || 0} quizzes
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                        
+                        html += '</div>';
+                    }
+                } else {
+                    html += '<p style="color: #666;">No lectures yet. Click "+ Lecture" to add one.</p>';
+                }
+                
+                html += '</div></div>';
+            }
+            
+            container.innerHTML = html || '<p>No content</p>';
+        }
+        
+        function populateConceptSelects() {
+            let options = '<option value="">-- Select Concept --</option>';
+            
+            for (const week of contentData) {
+                if (week.lectures) {
+                    for (const lecture of week.lectures) {
+                        if (lecture.concepts) {
+                            for (const concept of lecture.concepts) {
+                                options += `<option value="${concept.id}">Week ${week.week_number} > ${lecture.title} > ${concept.title}</option>`;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            document.getElementById('questionConceptSelect').innerHTML = options;
+            document.getElementById('quizConceptSelect').innerHTML = options;
+        }
+        
+        async function addLecture(weekId) {
+            const title = prompt('Enter lecture title:');
+            if (!title) return;
+            
+            const result = await createLecture(weekId, title);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadContentHierarchy();
+        }
+        
+        async function addConcept(lectureId) {
+            const title = prompt('Enter concept title:');
+            if (!title) return;
+            
+            const result = await createConcept(lectureId, title);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadContentHierarchy();
+        }
+        
+        async function addMaterial(conceptId) {
+            const type = prompt('Enter material type (video, html, pdf):') || 'html';
+            const title = prompt('Enter material title:');
+            if (!title) return;
+            
+            let content = null;
+            let externalUrl = null;
+            
+            if (type === 'video') {
+                externalUrl = prompt('Enter video URL:');
+            } else if (type === 'html') {
+                content = prompt('Enter HTML content or text:');
+            } else {
+                alert('For file uploads, use the upload feature (to be implemented)');
+                return;
+            }
+            
+            const result = await createMaterial(conceptId, type, title, content, externalUrl);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadContentHierarchy();
+        }
+        
+        async function loadQuestions() {
+            const conceptId = document.getElementById('questionConceptSelect').value;
+            const container = document.getElementById('questionsList');
+            
+            if (!conceptId) {
+                container.innerHTML = '<p style="color: #666;">Select a concept to view questions</p>';
+                return;
+            }
+            
+            const result = await getQuestions(conceptId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load questions</p>';
+                return;
+            }
+            
+            const questions = result.data;
+            
+            let html = `
+                <div class="flex-between mb-20">
+                    <span>${questions.length} question(s)</span>
+                    <button class="btn btn-primary btn-sm" onclick="showAddQuestionForm(${conceptId})">+ Add Question</button>
+                </div>
+            `;
+            
+            if (questions.length === 0) {
+                html += '<p style="color: #666;">No questions yet. Add questions or use the external API.</p>';
+            } else {
+                for (const q of questions) {
+                    html += `
+                        <div class="quiz-question">
+                            <div class="flex-between">
+                                <span class="badge badge-${q.difficulty === 'high' ? 'danger' : q.difficulty === 'medium' ? 'warning' : 'success'}">${q.difficulty}</span>
+                                <span>
+                                    <button class="btn btn-sm ${q.is_active ? 'btn-success' : 'btn-secondary'}" onclick="toggleQ(${q.id})">${q.is_active ? 'Active' : 'Inactive'}</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteQ(${q.id})">Delete</button>
+                                </span>
+                            </div>
+                            <div class="question-content" style="margin-top: 10px;">
+                                ${q.type === 'image' ? `<img src="${q.content}" style="max-height: 100px;">` : ''}
+                                ${q.type === 'html' ? q.content : escapeHtml(q.content)}
+                            </div>
+                            <div style="margin-top: 10px;">
+                                ${q.options.map((opt, i) => `
+                                    <div style="padding: 5px; ${i === q.correct_answer ? 'background: #d4edda; border-radius: 4px;' : ''}">
+                                        ${i === q.correct_answer ? '✓' : '○'} ${opt.type === 'image' ? `<img src="${opt.content}" style="max-height: 50px;">` : escapeHtml(opt.content)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function showAddQuestionForm(conceptId) {
+            const content = prompt('Enter question text:');
+            if (!content) return;
+            
+            const options = [];
+            for (let i = 0; i < 4; i++) {
+                const opt = prompt(`Enter option ${i + 1}:`);
+                if (opt) {
+                    options.push({ id: i, type: 'text', content: opt });
+                }
+            }
+            
+            if (options.length < 2) {
+                alert('Please provide at least 2 options');
+                return;
+            }
+            
+            const correctAnswer = parseInt(prompt(`Enter correct answer (0-${options.length - 1}):`));
+            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+                alert('Invalid correct answer');
+                return;
+            }
+            
+            const difficulty = prompt('Enter difficulty (low, medium, high):') || 'medium';
+            
+            createQuestion({
+                concept_id: conceptId,
+                type: 'text',
+                content: content,
+                options: options,
+                correct_answer: correctAnswer,
+                difficulty: difficulty
+            }).then(result => {
+                showAlert(result.message, result.success ? 'success' : 'danger');
+                if (result.success) loadQuestions();
+            });
+        }
+        
+        async function toggleQ(questionId) {
+            const result = await toggleQuestion(questionId);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadQuestions();
+        }
+        
+        async function deleteQ(questionId) {
+            if (!confirm('Delete this question?')) return;
+            const result = await deleteQuestion(questionId);
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            if (result.success) loadQuestions();
+        }
+        
+        async function loadQuizzes() {
+            const conceptId = document.getElementById('quizConceptSelect').value;
+            const container = document.getElementById('quizzesList');
+            
+            if (!conceptId) {
+                container.innerHTML = '<p style="color: #666;">Select a concept to view quizzes</p>';
+                return;
+            }
+            
+            const result = await getQuizzes(conceptId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load quizzes</p>';
+                return;
+            }
+            
+            const quizzes = result.data;
+            
+            let html = `
+                <div class="flex-between mb-20">
+                    <span>${quizzes.length} quiz(zes)</span>
+                    <button class="btn btn-primary btn-sm" onclick="showCreateQuizForm(${conceptId})">+ Create Quiz</button>
+                </div>
+            `;
+            
+            if (quizzes.length === 0) {
+                html += '<p style="color: #666;">No quizzes yet</p>';
+            } else {
+                html += '<table class="table"><thead><tr><th>Title</th><th>Questions</th><th>Time</th><th>Period</th><th>Attempts</th><th>Actions</th></tr></thead><tbody>';
+                
+                for (const quiz of quizzes) {
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(quiz.title)}</td>
+                            <td>${quiz.num_questions}</td>
+                            <td>${quiz.duration_minutes} min</td>
+                            <td>${formatDate(quiz.start_time)} - ${formatDate(quiz.end_time)}</td>
+                            <td>${quiz.attempt_count || 0}</td>
+                            <td>
+                                <a href="quiz-results.html?id=${quiz.id}" class="btn btn-sm btn-primary">Results</a>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function showCreateQuizForm(conceptId) {
+            const title = prompt('Enter quiz title:');
+            if (!title) return;
+            
+            const numQuestions = parseInt(prompt('Number of questions:'));
+            if (!numQuestions || numQuestions < 1) return;
+            
+            const startTime = prompt('Start time (YYYY-MM-DD HH:MM):');
+            const endTime = prompt('End time (YYYY-MM-DD HH:MM):');
+            
+            if (!startTime || !endTime) return;
+            
+            const duration = parseInt(prompt('Duration in minutes (default 10):')) || 10;
+            
+            createQuiz({
+                concept_id: conceptId,
+                title: title,
+                num_questions: numQuestions,
+                start_time: startTime,
+                end_time: endTime,
+                duration_minutes: duration
+            }).then(result => {
+                showAlert(result.message, result.success ? 'success' : 'danger');
+                if (result.success) loadQuizzes();
+            });
+        }
+        
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboardList');
+            const result = await getCourseLeaderboard(courseId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load leaderboard</p>';
+                return;
+            }
+            
+            const leaderboard = result.data;
+            
+            if (leaderboard.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No quiz attempts yet</p>';
+                return;
+            }
+            
+            let html = '<h3>Course Leaderboard</h3>';
+            let rank = 1;
+            
+            for (const entry of leaderboard) {
+                let rankClass = '';
+                if (rank === 1) rankClass = 'gold';
+                else if (rank === 2) rankClass = 'silver';
+                else if (rank === 3) rankClass = 'bronze';
+                
+                const percentage = entry.total_max_score > 0 
+                    ? Math.round((entry.total_score / entry.total_max_score) * 100) 
+                    : 0;
+                
+                html += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank ${rankClass}">${rank}</div>
+                        <div class="leaderboard-info">
+                            <strong>${escapeHtml(entry.name)}</strong>
+                            <div style="color: #666; font-size: 0.9rem;">
+                                ${escapeHtml(entry.roll_no)} | ${entry.quizzes_taken} quizzes
+                                ${entry.violations > 0 ? `<span class="badge badge-danger">${entry.violations} violations</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="leaderboard-score">
+                            ${entry.total_score}/${entry.total_max_score}
+                            <div style="color: #666; font-size: 0.8rem;">${percentage}%</div>
+                        </div>
+                    </div>
+                `;
+                rank++;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            content.classList.toggle('open');
+        }
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+    </script>
+</body>
+</html>

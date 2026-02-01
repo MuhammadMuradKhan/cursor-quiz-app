@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - LMS</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container-sm" style="margin-top: 80px;">
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="card-title">Login</h1>
+            </div>
+            
+            <div id="alert-container"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" placeholder="Enter your email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Login</button>
+            </form>
+            
+            <div class="text-center mt-20">
+                <a href="forgot-password.html">Forgot Password?</a>
+            </div>
+            
+            <hr style="margin: 20px 0;">
+            
+            <div class="text-center">
+                <p style="color: #666;">Have an invite link?</p>
+                <a href="register.html" class="btn btn-secondary">Register as Student</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Check if already logged in
+        (async () => {
+            const user = await checkAuth();
+            if (user) {
+                window.location.href = getDashboardUrl(user.role);
+            }
+        })();
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = 'Logging in...';
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await login(email, password);
+            
+            if (result.success) {
+                window.location.href = getDashboardUrl(result.data.role);
+            } else {
+                showAlert(result.message, 'danger');
+                btn.disabled = false;
+                btn.textContent = 'Login';
+            }
+        });
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

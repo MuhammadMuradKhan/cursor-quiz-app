@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Feedback - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Admin</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="users-manage.html">Users</a>
+            <a href="feedback-view.html" class="active">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <div class="card">
+            <div class="card-header flex-between">
+                <h3 class="card-title">All Feedback</h3>
+                <select id="typeFilter" class="form-control" style="width: auto;" onchange="loadFeedback()">
+                    <option value="">All Types</option>
+                    <option value="course">Course</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="faculty">Faculty</option>
+                    <option value="system">System</option>
+                    <option value="general">General</option>
+                </select>
+            </div>
+            
+            <div id="feedbackList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['admin']);
+            if (!currentUser) return;
+            
+            loadFeedback();
+        })();
+        
+        async function loadFeedback() {
+            const container = document.getElementById('feedbackList');
+            const type = document.getElementById('typeFilter').value || null;
+            
+            const result = await getAllFeedback(type);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load feedback</p>';
+                return;
+            }
+            
+            const feedback = result.data;
+            
+            if (feedback.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No feedback found</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            for (const fb of feedback) {
+                const typeBadge = {
+                    'course': 'badge-info',
+                    'quiz': 'badge-warning',
+                    'faculty': 'badge-secondary',
+                    'system': 'badge-danger',
+                    'general': 'badge-success'
+                }[fb.feedback_type] || 'badge-secondary';
+                
+                html += `
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <div class="flex-between">
+                            <span>
+                                <span class="badge ${typeBadge}">${fb.feedback_type}</span>
+                                <strong>${escapeHtml(fb.user_name)}</strong>
+                                <small style="color: #666;">(${fb.user_role})</small>
+                            </span>
+                            <small style="color: #666;">${formatDate(fb.created_at)}</small>
+                        </div>
+                        <p style="margin-top: 10px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                            ${escapeHtml(fb.content)}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

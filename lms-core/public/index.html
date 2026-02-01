@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS - Learning Management System</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container-sm" style="margin-top: 100px;">
+        <div class="card text-center">
+            <h1 style="margin-bottom: 10px;">LMS</h1>
+            <p style="color: #666; margin-bottom: 30px;">Learning Management System</p>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Checking authentication...</p>
+            </div>
+            
+            <div id="buttons" class="hidden">
+                <a href="login.html" class="btn btn-primary btn-block mb-10">Login</a>
+                <p style="color: #666; margin-top: 20px;">Have an invite link? <a href="register.html">Register here</a></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="assets/js/app.js"></script>
+    <script>
+        (async () => {
+            const user = await checkAuth();
+            
+            if (user) {
+                // Redirect to appropriate dashboard
+                window.location.href = getDashboardUrl(user.role);
+            } else {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('buttons').classList.remove('hidden');
+            }
+        })();
+    </script>
+</body>
+</html>

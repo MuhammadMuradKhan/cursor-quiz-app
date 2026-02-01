@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Student</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <a href="dashboard.html" style="color: #666;">&larr; Back to Dashboard</a>
+        
+        <div class="card mt-20">
+            <h2 id="courseName">Loading...</h2>
+            <p id="courseInfo" style="color: #666;"></p>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="card">
+            <div style="border-bottom: 1px solid #ddd; margin-bottom: 20px;">
+                <button class="btn btn-secondary" onclick="showTab('content')" id="tab-content">Content</button>
+                <button class="btn" onclick="showTab('quizzes')" id="tab-quizzes">Quizzes</button>
+                <button class="btn" onclick="showTab('leaderboard')" id="tab-leaderboard">Leaderboard</button>
+            </div>
+            
+            <div id="content-tab">
+                <div id="contentHierarchy">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+            
+            <div id="quizzes-tab" class="hidden">
+                <div id="quizzesList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+            
+            <div id="leaderboard-tab" class="hidden">
+                <div id="leaderboardList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let courseId = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['student']);
+            if (!currentUser) return;
+            
+            courseId = getUrlParam('id');
+            if (!courseId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            loadCourse();
+            loadContent();
+            loadQuizzes();
+            loadLeaderboard();
+        })();
+        
+        function showTab(tab) {
+            document.querySelectorAll('[id$="-tab"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tab + '-tab').classList.remove('hidden');
+            
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.remove('btn-secondary'));
+            document.getElementById('tab-' + tab).classList.add('btn-secondary');
+        }
+        
+        async function loadCourse() {
+            const result = await getCourse(courseId);
+            
+            if (result.success) {
+                document.getElementById('courseName').textContent = result.data.name;
+                document.getElementById('courseInfo').textContent = 
+                    `${result.data.code} | Faculty: ${result.data.faculty_name}`;
+            }
+        }
+        
+        async function loadContent() {
+            const container = document.getElementById('contentHierarchy');
+            const result = await getContentHierarchy(courseId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load content</p>';
+                return;
+            }
+            
+            const weeks = result.data;
+            let html = '';
+            
+            for (const week of weeks) {
+                html += `
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span><strong>Week ${week.week_number}:</strong> ${escapeHtml(week.title || 'No Title')}</span>
+                            <span>${week.lectures ? week.lectures.length : 0} lectures</span>
+                        </div>
+                        <div class="accordion-content">
+                `;
+                
+                if (week.lectures && week.lectures.length > 0) {
+                    for (const lecture of week.lectures) {
+                        html += `
+                            <div style="margin-left: 20px; padding: 10px; border-left: 2px solid #3498db;">
+                                <strong>${escapeHtml(lecture.title)}</strong>
+                        `;
+                        
+                        if (lecture.concepts && lecture.concepts.length > 0) {
+                            for (const concept of lecture.concepts) {
+                                html += `
+                                    <div style="margin-left: 20px; padding: 10px; background: #f8f9fa; margin-top: 5px; border-radius: 4px;">
+                                        <strong>${escapeHtml(concept.title)}</strong>
+                                        <span class="badge badge-info">${concept.material_count || 0} materials</span>
+                                        <span class="badge badge-secondary">${concept.quiz_count || 0} quizzes</span>
+                                `;
+                                
+                                if (concept.materials && concept.materials.length > 0) {
+                                    html += '<div style="margin-top: 10px;">';
+                                    for (const material of concept.materials) {
+                                        let icon = '📄';
+                                        if (material.type === 'pdf') icon = '📕';
+                                        else if (material.type === 'video') icon = '🎬';
+                                        else if (material.type === 'ppt') icon = '📊';
+                                        
+                                        if (material.file_path) {
+                                            html += `<a href="../../${material.file_path}" target="_blank" style="display: block; padding: 5px;">${icon} ${escapeHtml(material.title)}</a>`;
+                                        } else if (material.external_url) {
+                                            html += `<a href="${material.external_url}" target="_blank" style="display: block; padding: 5px;">${icon} ${escapeHtml(material.title)}</a>`;
+                                        } else {
+                                            html += `<span style="display: block; padding: 5px;">${icon} ${escapeHtml(material.title)}</span>`;
+                                        }
+                                    }
+                                    html += '</div>';
+                                }
+                                
+                                html += '</div>';
+                            }
+                        }
+                        
+                        html += '</div>';
+                    }
+                } else {
+                    html += '<p style="color: #666;">No lectures yet</p>';
+                }
+                
+                html += '</div></div>';
+            }
+            
+            container.innerHTML = html || '<p>No content available yet</p>';
+        }
+        
+        async function loadQuizzes() {
+            const container = document.getElementById('quizzesList');
+            const result = await getAvailableQuizzes(courseId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load quizzes</p>';
+                return;
+            }
+            
+            const quizzes = result.data;
+            
+            if (quizzes.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No quizzes available right now</p>';
+                return;
+            }
+            
+            let html = '<table class="table"><thead><tr><th>Quiz</th><th>Concept</th><th>Deadline</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+            
+            for (const quiz of quizzes) {
+                let status = '<span class="badge badge-success">Available</span>';
+                let action = `<a href="quiz.html?id=${quiz.id}" class="btn btn-primary btn-sm">Start Quiz</a>`;
+                
+                if (quiz.submitted_at) {
+                    status = '<span class="badge badge-secondary">Completed</span>';
+                    action = `<a href="quiz-result.html?id=${quiz.attempt_id}" class="btn btn-secondary btn-sm">View Results</a>`;
+                } else if (quiz.attempt_id) {
+                    status = '<span class="badge badge-warning">In Progress</span>';
+                    action = `<a href="quiz.html?id=${quiz.id}" class="btn btn-warning btn-sm">Continue</a>`;
+                }
+                
+                html += `
+                    <tr>
+                        <td>${escapeHtml(quiz.title)}</td>
+                        <td>${escapeHtml(quiz.concept_title)}</td>
+                        <td>${formatDate(quiz.end_time)}</td>
+                        <td>${status}</td>
+                        <td>${action}</td>
+                    </tr>
+                `;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboardList');
+            const result = await getCourseLeaderboard(courseId);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load leaderboard</p>';
+                return;
+            }
+            
+            const leaderboard = result.data;
+            
+            if (leaderboard.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No quiz attempts yet</p>';
+                return;
+            }
+            
+            let html = '';
+            let rank = 1;
+            
+            for (const entry of leaderboard) {
+                let rankClass = '';
+                if (rank === 1) rankClass = 'gold';
+                else if (rank === 2) rankClass = 'silver';
+                else if (rank === 3) rankClass = 'bronze';
+                
+                const percentage = entry.total_max_score > 0 
+                    ? Math.round((entry.total_score / entry.total_max_score) * 100) 
+                    : 0;
+                
+                html += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank ${rankClass}">${rank}</div>
+                        <div class="leaderboard-info">
+                            <strong>${escapeHtml(entry.name)}</strong>
+                            <div style="color: #666; font-size: 0.9rem;">
+                                ${escapeHtml(entry.roll_no)} | ${entry.quizzes_taken} quizzes
+                                ${entry.violations > 0 ? `<span class="badge badge-danger">${entry.violations} violations</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="leaderboard-score">
+                            ${entry.total_score}/${entry.total_max_score}
+                            <div style="color: #666; font-size: 0.8rem;">${percentage}%</div>
+                        </div>
+                    </div>
+                `;
+                rank++;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            content.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>

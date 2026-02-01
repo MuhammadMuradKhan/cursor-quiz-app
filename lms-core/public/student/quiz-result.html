@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Student</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <div class="card text-center">
+            <h2 id="quizTitle">Quiz Results</h2>
+            <div id="scoreSection" style="margin: 30px 0;">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>Question Review</h3>
+            <div id="questionsReview">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-20">
+            <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['student']);
+            if (!currentUser) return;
+            
+            const attemptId = getUrlParam('id');
+            if (!attemptId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            loadResults(attemptId);
+        })();
+        
+        async function loadResults(attemptId) {
+            const result = await getMyResults(attemptId);
+            
+            if (!result.success) {
+                document.getElementById('scoreSection').innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+                return;
+            }
+            
+            const data = result.data;
+            
+            document.getElementById('quizTitle').textContent = data.quiz_title;
+            
+            // Score section
+            const scoreColor = data.percentage >= 60 ? '#27ae60' : '#e74c3c';
+            let scoreHtml = `
+                <div style="font-size: 3rem; font-weight: bold; color: ${scoreColor};">
+                    ${data.score}/${data.max_score}
+                </div>
+                <div style="font-size: 1.5rem; color: #666;">${data.percentage}%</div>
+            `;
+            
+            if (data.is_violation) {
+                scoreHtml += `
+                    <div class="alert alert-danger" style="margin-top: 20px;">
+                        <strong>Violation Detected</strong><br>
+                        ${data.violation_reason || 'Tab switch detected during quiz'}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('scoreSection').innerHTML = scoreHtml;
+            
+            // Questions review
+            let questionsHtml = '';
+            
+            data.results.forEach((r, index) => {
+                const isCorrect = r.is_correct;
+                const borderColor = isCorrect ? '#27ae60' : '#e74c3c';
+                
+                questionsHtml += `
+                    <div class="quiz-question" style="border-left: 4px solid ${borderColor};">
+                        <div class="flex-between">
+                            <span class="question-number">Question ${index + 1}</span>
+                            ${isCorrect 
+                                ? '<span class="badge badge-success">Correct</span>'
+                                : '<span class="badge badge-danger">Incorrect</span>'
+                            }
+                        </div>
+                        <div class="question-content">
+                `;
+                
+                // Render question
+                const q = r.question;
+                if (q.type === 'image') {
+                    questionsHtml += `<img src="${q.content}" alt="Question">`;
+                    if (q.question_text) questionsHtml += `<p>${q.question_text}</p>`;
+                } else if (q.type === 'html') {
+                    questionsHtml += q.content;
+                    if (q.question_text) questionsHtml += `<p>${q.question_text}</p>`;
+                } else {
+                    questionsHtml += `<p>${escapeHtml(q.content)}</p>`;
+                }
+                
+                questionsHtml += '</div><div class="options">';
+                
+                // Render options with correct/incorrect highlighting
+                q.options.forEach((opt, optIndex) => {
+                    let optionClass = 'quiz-option';
+                    if (optIndex === r.correct_answer) {
+                        optionClass += ' correct';
+                    } else if (optIndex === r.student_answer && !isCorrect) {
+                        optionClass += ' incorrect';
+                    }
+                    
+                    questionsHtml += `<div class="${optionClass}">`;
+                    
+                    if (opt.type === 'image') {
+                        questionsHtml += `<img src="${opt.content}" alt="Option" style="max-height: 80px;">`;
+                    } else if (opt.type === 'html') {
+                        questionsHtml += opt.content;
+                    } else {
+                        questionsHtml += escapeHtml(opt.content);
+                    }
+                    
+                    if (optIndex === r.correct_answer) {
+                        questionsHtml += ' <strong>(Correct Answer)</strong>';
+                    }
+                    if (optIndex === r.student_answer) {
+                        questionsHtml += ' <em>(Your Answer)</em>';
+                    }
+                    
+                    questionsHtml += '</div>';
+                });
+                
+                if (r.student_answer === null) {
+                    questionsHtml += '<p style="color: #e74c3c;"><em>Not answered</em></p>';
+                }
+                
+                questionsHtml += '</div></div>';
+            });
+            
+            document.getElementById('questionsReview').innerHTML = questionsHtml;
+        }
+    </script>
+</body>
+</html>

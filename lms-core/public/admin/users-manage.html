@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Admin</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="users-manage.html" class="active">Users</a>
+            <a href="feedback-view.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <div class="card">
+            <div class="card-header flex-between">
+                <h3 class="card-title">Manage Users</h3>
+                <div>
+                    <select id="roleFilter" class="form-control" style="display: inline; width: auto;" onchange="loadUsers()">
+                        <option value="">All Roles</option>
+                        <option value="admin">Admin</option>
+                        <option value="faculty">Faculty</option>
+                        <option value="student">Student</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="showCreateUserModal()">+ Create User</button>
+                </div>
+            </div>
+            
+            <div id="usersList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal-overlay hidden" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Create User</h3>
+                <button class="modal-close" onclick="hideCreateUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="form-group">
+                        <label for="userName">Full Name *</label>
+                        <input type="text" id="userName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">Email *</label>
+                        <input type="email" id="userEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPassword">Password *</label>
+                        <input type="password" id="userPassword" class="form-control" minlength="8" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole">Role *</label>
+                        <select id="userRole" class="form-control" required>
+                            <option value="student">Student</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="rollNoGroup">
+                        <label for="userRollNo">Roll Number (for students)</label>
+                        <input type="text" id="userRollNo" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideCreateUserModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createNewUser()">Create User</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['admin']);
+            if (!currentUser) return;
+            
+            loadUsers();
+        })();
+        
+        async function loadUsers() {
+            const container = document.getElementById('usersList');
+            const role = document.getElementById('roleFilter').value || null;
+            
+            const result = await getUsers(role);
+            
+            if (!result.success) {
+                container.innerHTML = '<p>Failed to load users</p>';
+                return;
+            }
+            
+            const users = result.data;
+            
+            if (users.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No users found</p>';
+                return;
+            }
+            
+            let html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Roll No</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            
+            for (const user of users) {
+                const roleBadge = {
+                    'admin': 'badge-danger',
+                    'faculty': 'badge-info',
+                    'student': 'badge-secondary'
+                }[user.role];
+                
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(user.name)}</strong></td>
+                        <td>${escapeHtml(user.email)}</td>
+                        <td><span class="badge ${roleBadge}">${user.role}</span></td>
+                        <td>${user.roll_no || '-'}</td>
+                        <td>
+                            ${user.deleted_at ? '<span class="badge badge-danger">Deleted</span>' : ''}
+                            ${user.is_blocked ? '<span class="badge badge-warning">Blocked</span>' : ''}
+                            ${!user.deleted_at && !user.is_blocked ? '<span class="badge badge-success">Active</span>' : ''}
+                        </td>
+                        <td>
+                            ${user.id !== currentUser.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUserConfirm(${user.id})">Delete</button>` : '-'}
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function showCreateUserModal() {
+            document.getElementById('createUserModal').classList.remove('hidden');
+        }
+        
+        function hideCreateUserModal() {
+            document.getElementById('createUserModal').classList.add('hidden');
+        }
+        
+        function closeModal(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                hideCreateUserModal();
+            }
+        }
+        
+        async function createNewUser() {
+            const data = {
+                name: document.getElementById('userName').value,
+                email: document.getElementById('userEmail').value,
+                password: document.getElementById('userPassword').value,
+                role: document.getElementById('userRole').value,
+                roll_no: document.getElementById('userRollNo').value || null
+            };
+            
+            const result = await createUser(data);
+            
+            if (result.success) {
+                hideCreateUserModal();
+                showAlert('User created successfully!', 'success');
+                document.getElementById('createUserForm').reset();
+                loadUsers();
+            } else {
+                showAlert(result.message, 'danger');
+            }
+        }
+        
+        async function deleteUserConfirm(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            
+            const result = await deleteUser(userId);
+            
+            if (result.success) {
+                showAlert('User deleted successfully!', 'success');
+                loadUsers();
+            } else {
+                showAlert(result.message, 'danger');
+            }
+        }
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+    </script>
+</body>
+</html>

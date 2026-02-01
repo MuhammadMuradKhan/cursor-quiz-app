@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - LMS</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container-sm" style="margin-top: 50px;">
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="card-title">Student Registration</h1>
+            </div>
+            
+            <div id="alert-container"></div>
+            
+            <div id="courseInfo" class="alert alert-info hidden">
+                <strong>Course:</strong> <span id="courseName"></span><br>
+                <strong>Faculty:</strong> <span id="facultyName"></span>
+            </div>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="invite_code">Invite Code *</label>
+                    <input type="text" id="invite_code" class="form-control" placeholder="Enter invite code" required>
+                    <small style="color: #666;">Get this from your faculty or use the invite link</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" class="form-control" placeholder="Enter your full name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="roll_no">Roll Number *</label>
+                    <input type="text" id="roll_no" class="form-control" placeholder="e.g., 2024-CS-001" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" class="form-control" placeholder="Enter your email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input type="password" id="password" class="form-control" placeholder="Minimum 8 characters" required minlength="8">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password *</label>
+                    <input type="password" id="confirm_password" class="form-control" placeholder="Confirm your password" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block" id="registerBtn">Register</button>
+            </form>
+            
+            <div class="text-center mt-20">
+                <p>Already have an account? <a href="login.html">Login</a></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Check for invite code in URL
+        const inviteCode = getUrlParam('invite');
+        if (inviteCode) {
+            document.getElementById('invite_code').value = inviteCode;
+            loadCourseInfo(inviteCode);
+        }
+        
+        // Verify invite code on change
+        document.getElementById('invite_code').addEventListener('blur', async function() {
+            if (this.value) {
+                loadCourseInfo(this.value);
+            }
+        });
+        
+        async function loadCourseInfo(code) {
+            const result = await getCourseByInvite(code);
+            
+            if (result.success) {
+                document.getElementById('courseName').textContent = result.data.name + ' (' + result.data.code + ')';
+                document.getElementById('facultyName').textContent = result.data.faculty_name;
+                document.getElementById('courseInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('courseInfo').classList.add('hidden');
+            }
+        }
+        
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            
+            if (password !== confirmPassword) {
+                showAlert('Passwords do not match', 'danger');
+                return;
+            }
+            
+            const btn = document.getElementById('registerBtn');
+            btn.disabled = true;
+            btn.textContent = 'Registering...';
+            
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: password,
+                roll_no: document.getElementById('roll_no').value,
+                invite_code: document.getElementById('invite_code').value
+            };
+            
+            const result = await register(data);
+            
+            if (result.success) {
+                showAlert('Registration successful! Your enrollment is pending faculty approval. You can now login.', 'success');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 3000);
+            } else {
+                showAlert(result.message, 'danger');
+                btn.disabled = false;
+                btn.textContent = 'Register';
+            }
+        });
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

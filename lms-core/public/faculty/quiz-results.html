@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - LMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LMS - Faculty</h1>
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html">Feedback</a>
+            <a href="#" onclick="logout(); return false;">Logout</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="alert-container"></div>
+        
+        <a href="javascript:history.back()" style="color: #666;">&larr; Back</a>
+        
+        <div class="card mt-20">
+            <h2 id="quizTitle">Quiz Results</h2>
+            <p id="quizInfo" style="color: #666;"></p>
+        </div>
+        
+        <div class="card">
+            <div id="resultsList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        
+        (async () => {
+            currentUser = await requireAuth(['faculty', 'admin']);
+            if (!currentUser) return;
+            
+            const quizId = getUrlParam('id');
+            if (!quizId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            loadResults(quizId);
+        })();
+        
+        async function loadResults(quizId) {
+            const result = await getQuizResults(quizId);
+            
+            if (!result.success) {
+                document.getElementById('resultsList').innerHTML = '<p>Failed to load results</p>';
+                return;
+            }
+            
+            const quiz = result.data.quiz;
+            const results = result.data.results;
+            
+            document.getElementById('quizTitle').textContent = quiz.title;
+            document.getElementById('quizInfo').textContent = `${quiz.concept_title} | ${results.length} attempts`;
+            
+            if (results.length === 0) {
+                document.getElementById('resultsList').innerHTML = '<p style="color: #666;">No attempts yet</p>';
+                return;
+            }
+            
+            let html = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Student</th>
+                            <th>Roll No</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            let rank = 1;
+            for (const r of results) {
+                const percentage = r.max_score > 0 ? Math.round((r.score / r.max_score) * 100) : 0;
+                const statusBadge = r.is_violation 
+                    ? '<span class="badge badge-danger">Violation</span>'
+                    : (r.submitted_at ? '<span class="badge badge-success">Completed</span>' : '<span class="badge badge-warning">In Progress</span>');
+                
+                html += `
+                    <tr>
+                        <td>${rank}</td>
+                        <td>${escapeHtml(r.student_name)}</td>
+                        <td>${escapeHtml(r.roll_no || '-')}</td>
+                        <td><strong>${r.score}/${r.max_score}</strong> (${percentage}%)</td>
+                        <td>${statusBadge}</td>
+                        <td>${r.submitted_at ? formatDate(r.submitted_at) : '-'}</td>
+                    </tr>
+                `;
+                rank++;
+            }
+            
+            html += '</tbody></table>';
+            document.getElementById('resultsList').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
