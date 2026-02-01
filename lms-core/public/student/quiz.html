@@ -4,226 +4,824 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz - LMS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
-        body { background: #f5f5f5; }
-        .quiz-header { 
-            position: sticky; 
-            top: 0; 
-            background: white; 
-            padding: 15px; 
-            z-index: 100;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            gap: 1.5rem;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            align-self: center;
+        }
+
+        .btn:hover {
+            background-color: #4338ca;
+        }
+        
+        .btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background-color: #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
+
+        /* Header & Timers */
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .timer-box {
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .timer-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .timer-value {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #1e293b;
+        }
+
+        .timer-value.warning {
+            color: #f59e0b;
+        }
+        
+        .timer-value.danger {
+            color: #dc2626;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Question Area */
+        .question-container {
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .question-container img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Options Grid */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .option-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+            position: relative;
+        }
+
+        .option-card:hover {
+            border-color: #4f46e5;
+            background-color: #f5f3ff;
+        }
+
+        .option-card.selected {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+            color: white;
+        }
+
+        .option-card img {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: contain;
+        }
+
+        /* Result Screen */
+        .result-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .violation-flag {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .violation-flag svg {
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .warning-banner {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            animation: pulse 1s infinite;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .info-text {
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .score-display.pass {
+            color: #22c55e;
+        }
+
+        .score-display.fail {
+            color: #ef4444;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #4f46e5;
+            border-radius: 3px;
+            transition: width 0.3s;
         }
     </style>
 </head>
 <body>
-    <div class="quiz-header">
-        <div class="container flex-between">
-            <h2 id="quizTitle">Quiz</h2>
-            <div class="timer" id="timer">--:--</div>
-        </div>
-    </div>
-    
-    <div class="container">
-        <div id="alert-container"></div>
+
+    <div id="app-container">
         
-        <div id="quizContent">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Loading quiz...</p>
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="screen active">
+            <h1>Loading Quiz...</h1>
+            <div style="text-align: center;">
+                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            </div>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="error-screen" class="screen">
+            <h1>Error</h1>
+            <p id="error-message" style="text-align: center; color: #dc2626;"></p>
+            <a href="dashboard.html" class="btn">Back to Dashboard</a>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <h1 id="quiz-title">Quiz</h1>
+            <div class="info-text">
+                <p>Total Questions: <strong id="question-count">0</strong></p>
+                <p>Time Limit: <strong id="total-minutes">0</strong> minutes</p>
+                <p style="margin-top: 1rem; color: #dc2626;">
+                    <strong>WARNING:</strong> If you switch tabs or leave this screen for more than 5 seconds, 
+                    your quiz will be automatically submitted with zero marks.
+                </p>
+            </div>
+            <button id="start-btn" class="btn">Start Quiz</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="screen">
+            <div class="quiz-header">
+                <div class="timer-box">
+                    <span class="timer-label">Time Left</span>
+                    <span id="total-timer" class="timer-value">00:00</span>
+                </div>
+                <div class="timer-box">
+                    <span class="timer-label">Question</span>
+                    <span id="question-num" class="timer-value">1/10</span>
+                </div>
+                <div class="timer-box">
+                    <span class="timer-label">Tab Warning</span>
+                    <span id="inactivity-timer" class="timer-value">5s</span>
+                </div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-fill" style="width: 0%;"></div>
+            </div>
+
+            <div id="tab-warning" class="warning-banner hidden">
+                ⚠️ TAB SWITCH DETECTED! Return now or quiz will auto-submit in <span id="warning-countdown">5</span> seconds!
+            </div>
+
+            <div id="question-content" class="question-container">
+                <!-- Content injected by JS -->
+            </div>
+
+            <div id="options-grid" class="options-grid">
+                <!-- Options injected by JS -->
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="submit-btn" class="btn btn-danger" onclick="submitQuizManually()">Submit Quiz</button>
             </div>
         </div>
-        
-        <div id="submitSection" class="hidden card">
-            <p>You have answered <span id="answeredCount">0</span> of <span id="totalCount">0</span> questions.</p>
-            <button class="btn btn-success btn-block" onclick="submitQuizAnswers()">Submit Quiz</button>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="screen">
+            <h1>Quiz Completed</h1>
+            
+            <div id="score-section">
+                <div class="score-display" id="score-display">0/0</div>
+                <p style="text-align: center; color: #666;" id="percentage-display">0%</p>
+            </div>
+
+            <div class="result-stats">
+                <div class="stat-item">
+                    <span>Total Time:</span>
+                    <span id="time-stat">0m 0s</span>
+                </div>
+                <div class="stat-item">
+                    <span>Active Screen Time:</span>
+                    <span id="active-stat">0m 0s</span>
+                </div>
+                <div class="stat-item">
+                    <span>Questions Answered:</span>
+                    <span id="answered-stat">0/0</span>
+                </div>
+            </div>
+
+            <div id="violation-banner" class="violation-flag hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div>
+                    <strong>QUIZ VIOLATION</strong><br>
+                    You switched tabs or left the screen for more than 5 seconds. 
+                    Your quiz has been automatically submitted with <strong>zero marks</strong>.
+                    This incident has been recorded.
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="dashboard.html" class="btn">Back to Dashboard</a>
+            </div>
         </div>
+
     </div>
-    
-    <script src="../assets/js/app.js"></script>
+
     <script>
-        let currentUser = null;
+        // =====================================================
+        // STATE
+        // =====================================================
+        
+        const API_BASE = '../api';
+        
         let quizId = null;
         let attemptId = null;
         let questions = [];
+        let currentQuestionIndex = 0;
         let answers = {};
-        let timeRemaining = 0;
-        let timerInterval = null;
+        let testState = 'loading'; // loading, error, start, in-progress, complete
         
-        (async () => {
-            currentUser = await requireAuth(['student']);
-            if (!currentUser) return;
+        // Timer Variables
+        let totalDuration = 600; // 10 minutes default
+        let totalTimeLeft = 600;
+        let activeTimeElapsed = 0;
+        let inactivityBucket = 5; // 5 seconds as per requirement
+        let isViolation = false;
+        let testStartTime = null;
+        
+        // Interval IDs
+        let totalTimerId = null;
+        let activeTimerId = null;
+        let inactivityTimerId = null;
+        let isWindowActive = true;
+
+        // DOM Elements
+        const screens = {
+            loading: document.getElementById('loading-screen'),
+            error: document.getElementById('error-screen'),
+            start: document.getElementById('start-screen'),
+            quiz: document.getElementById('quiz-screen'),
+            result: document.getElementById('result-screen')
+        };
+
+        // =====================================================
+        // INITIALIZATION
+        // =====================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get quiz ID from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            quizId = urlParams.get('id');
             
-            quizId = getUrlParam('id');
             if (!quizId) {
-                window.location.href = 'dashboard.html';
+                showError('No quiz ID provided');
                 return;
             }
             
-            await loadQuiz();
-            
-            // Initialize tab switch detection
-            initTabSwitchDetection(handleViolation);
-        })();
-        
-        async function loadQuiz() {
-            const result = await startQuiz(quizId);
-            
-            if (!result.success) {
-                document.getElementById('quizContent').innerHTML = `
-                    <div class="card">
-                        <div class="alert alert-danger">${result.message}</div>
-                        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
-                    </div>
-                `;
-                return;
-            }
-            
-            attemptId = result.data.attempt_id;
-            questions = result.data.questions;
-            timeRemaining = result.data.time_remaining_seconds;
-            
-            document.getElementById('quizTitle').textContent = result.data.quiz_title;
-            
-            renderQuestions();
-            startTimer();
-            
-            document.getElementById('submitSection').classList.remove('hidden');
-            document.getElementById('totalCount').textContent = questions.length;
-        }
-        
-        function renderQuestions() {
-            const container = document.getElementById('quizContent');
-            let html = '';
-            
-            questions.forEach((q, index) => {
-                html += `
-                    <div class="quiz-question" id="question-${index}">
-                        <div class="question-number">Question ${index + 1} of ${questions.length}</div>
-                        <div class="question-content">
-                `;
-                
-                // Render question based on type
-                if (q.type === 'image') {
-                    html += `<img src="${q.content}" alt="Question image">`;
-                    if (q.question_text) {
-                        html += `<p>${q.question_text}</p>`;
-                    }
-                } else if (q.type === 'html') {
-                    html += q.content;
-                    if (q.question_text) {
-                        html += `<p>${q.question_text}</p>`;
-                    }
-                } else {
-                    html += `<p>${escapeHtml(q.content)}</p>`;
+            // Check authentication and start quiz
+            initQuiz();
+        });
+
+        async function initQuiz() {
+            try {
+                // Check if user is authenticated
+                const authResult = await apiCall('auth.php', 'me');
+                if (!authResult.success) {
+                    window.location.href = '../login.html';
+                    return;
                 }
                 
-                html += '</div><div class="options">';
+                // Start quiz attempt via API
+                const startResult = await apiCall('quizzes.php', 'start', { quiz_id: quizId });
                 
-                // Render options
-                q.options.forEach((opt, optIndex) => {
-                    html += `
-                        <label class="quiz-option" onclick="selectOption(${index}, ${optIndex})">
-                            <input type="radio" name="q${index}" value="${optIndex}">
-                    `;
-                    
-                    if (opt.type === 'image') {
-                        html += `<img src="${opt.content}" alt="Option ${optIndex + 1}" style="max-height: 100px;">`;
-                    } else if (opt.type === 'html') {
-                        html += opt.content;
-                    } else {
-                        html += escapeHtml(opt.content);
-                    }
-                    
-                    html += '</label>';
+                if (!startResult.success) {
+                    showError(startResult.message);
+                    return;
+                }
+                
+                // Store data
+                attemptId = startResult.data.attempt_id;
+                questions = startResult.data.questions;
+                totalDuration = startResult.data.duration_minutes * 60;
+                totalTimeLeft = startResult.data.time_remaining_seconds;
+                
+                // Update UI
+                document.getElementById('quiz-title').textContent = startResult.data.quiz_title || 'Quiz';
+                document.getElementById('question-count').textContent = questions.length;
+                document.getElementById('total-minutes').textContent = Math.ceil(totalTimeLeft / 60);
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Show start screen
+                switchScreen('start');
+                testState = 'start';
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                showError('Failed to load quiz. Please try again.');
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('start-btn').addEventListener('click', startTest);
+            
+            // Tab Visibility / Focus Tracking
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', () => handleFocusChange(false));
+            window.addEventListener('focus', () => handleFocusChange(true));
+        }
+
+        // =====================================================
+        // API HELPER
+        // =====================================================
+
+        async function apiCall(endpoint, action, data = {}) {
+            const url = `${API_BASE}/${endpoint}?action=${action}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
-                
-                html += '</div></div>';
-            });
-            
-            container.innerHTML = html;
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return { success: false, message: 'Network error' };
+            }
         }
-        
-        function selectOption(questionIndex, optionIndex) {
-            // Update answers
-            answers[questionIndex] = optionIndex;
+
+        // =====================================================
+        // CORE TEST LOGIC
+        // =====================================================
+
+        function startTest() {
+            if (questions.length === 0) return;
+
+            testState = 'in-progress';
+            switchScreen('quiz');
             
-            // Update UI
-            const questionDiv = document.getElementById(`question-${questionIndex}`);
-            questionDiv.querySelectorAll('.quiz-option').forEach((opt, i) => {
-                opt.classList.toggle('selected', i === optionIndex);
-            });
+            // Reset counters
+            currentQuestionIndex = 0;
+            answers = {};
+            activeTimeElapsed = 0;
+            inactivityBucket = 5;
+            isViolation = false;
+            testStartTime = Date.now();
+            isWindowActive = true;
+
+            updateTimerDisplays();
+            renderQuestion();
             
-            // Update count
-            document.getElementById('answeredCount').textContent = Object.keys(answers).length;
+            // Start Timers
+            startTimers();
+            
+            // Prevent accidental navigation
+            window.onbeforeunload = () => 'Are you sure you want to leave? Your quiz will be submitted.';
         }
-        
-        function startTimer() {
-            updateTimerDisplay();
-            
-            timerInterval = setInterval(() => {
-                timeRemaining--;
-                updateTimerDisplay();
+
+        function startTimers() {
+            // 1. Total Countdown
+            clearInterval(totalTimerId);
+            totalTimerId = setInterval(() => {
+                totalTimeLeft--;
+                updateTimerDisplays();
                 
-                if (timeRemaining <= 0) {
-                    clearInterval(timerInterval);
-                    submitQuizAnswers(false, 'Time expired');
+                if (totalTimeLeft <= 0) {
+                    completeTest(false);
+                }
+            }, 1000);
+
+            // 2. Active Screen Timer
+            clearInterval(activeTimerId);
+            activeTimerId = setInterval(() => {
+                if (isWindowActive) {
+                    activeTimeElapsed++;
                 }
             }, 1000);
         }
-        
-        function updateTimerDisplay() {
-            const minutes = Math.floor(timeRemaining / 60);
-            const seconds = timeRemaining % 60;
-            const display = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        function handleFocusChange(focused) {
+            if (testState !== 'in-progress') return;
             
-            const timerEl = document.getElementById('timer');
-            timerEl.textContent = display;
+            isWindowActive = focused;
             
-            // Warning colors
-            timerEl.classList.remove('warning', 'danger');
-            if (timeRemaining <= 60) {
-                timerEl.classList.add('danger');
-            } else if (timeRemaining <= 180) {
-                timerEl.classList.add('warning');
+            if (focused) {
+                // User returned - stop inactivity countdown
+                clearInterval(inactivityTimerId);
+                inactivityTimerId = null;
+                document.getElementById('tab-warning').classList.add('hidden');
+                document.getElementById('inactivity-timer').classList.remove('danger');
+                // Reset inactivity bucket when user returns (if not violated)
+                if (!isViolation) {
+                    inactivityBucket = 5;
+                    updateTimerDisplays();
+                }
+            } else {
+                // User left - Start 5 second countdown
+                if (inactivityTimerId) return; // Already running
+                
+                document.getElementById('tab-warning').classList.remove('hidden');
+                document.getElementById('inactivity-timer').classList.add('danger');
+                
+                inactivityTimerId = setInterval(() => {
+                    inactivityBucket--;
+                    document.getElementById('warning-countdown').textContent = inactivityBucket;
+                    updateTimerDisplays();
+                    
+                    if (inactivityBucket <= 0) {
+                        // VIOLATION - Auto submit with zero marks
+                        isViolation = true;
+                        clearInterval(inactivityTimerId);
+                        completeTest(true);
+                    }
+                }, 1000);
             }
         }
-        
-        async function handleViolation() {
-            stopTabSwitchDetection();
-            clearInterval(timerInterval);
-            
-            await submitQuizAnswers(true, 'Tab switch violation');
+
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                handleFocusChange(false);
+            } else {
+                handleFocusChange(true);
+            }
         }
-        
-        async function submitQuizAnswers(isViolation = false, reason = null) {
-            // Stop timer and detection
-            clearInterval(timerInterval);
-            stopTabSwitchDetection();
+
+        function updateTimerDisplays() {
+            // Total Timer formatted MM:SS
+            const minutes = Math.floor(totalTimeLeft / 60);
+            const seconds = totalTimeLeft % 60;
+            const timerEl = document.getElementById('total-timer');
+            timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
-            // Build answers array
+            // Warning colors for time
+            timerEl.classList.remove('warning', 'danger');
+            if (totalTimeLeft <= 60) {
+                timerEl.classList.add('danger');
+            } else if (totalTimeLeft <= 180) {
+                timerEl.classList.add('warning');
+            }
+
+            // Inactivity display
+            document.getElementById('inactivity-timer').textContent = `${inactivityBucket}s`;
+            
+            // Progress bar
+            const progress = ((currentQuestionIndex) / questions.length) * 100;
+            document.getElementById('progress-fill').style.width = progress + '%';
+        }
+
+        // =====================================================
+        // RENDERING
+        // =====================================================
+
+        function renderQuestion() {
+            const q = questions[currentQuestionIndex];
+            
+            // Progress
+            document.getElementById('question-num').textContent = `${currentQuestionIndex + 1}/${questions.length}`;
+            
+            // Update progress bar
+            const progress = ((currentQuestionIndex) / questions.length) * 100;
+            document.getElementById('progress-fill').style.width = progress + '%';
+
+            // Question Content
+            const container = document.getElementById('question-content');
+            container.innerHTML = '';
+            
+            // If there is separate question text (for image/html questions)
+            if (q.question_text) {
+                const textEl = document.createElement('div');
+                textEl.className = 'question-text';
+                textEl.textContent = q.question_text;
+                container.appendChild(textEl);
+            }
+
+            // Main Content
+            const contentEl = createContentElement(q.type, q.content);
+            if (q.type === 'text' && !q.question_text) {
+                contentEl.className = 'question-text';
+            }
+            container.appendChild(contentEl);
+
+            // Options
+            const optionsGrid = document.getElementById('options-grid');
+            optionsGrid.innerHTML = '';
+            
+            q.options.forEach(opt => {
+                const btn = document.createElement('div');
+                btn.className = 'option-card';
+                
+                // Check if already selected
+                if (answers[currentQuestionIndex] === opt.id) {
+                    btn.classList.add('selected');
+                }
+                
+                btn.appendChild(createContentElement(opt.type, opt.content));
+                btn.addEventListener('click', () => selectAnswer(opt.id, btn));
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        function createContentElement(type, content) {
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = content;
+                img.alt = 'Content';
+                return img;
+            } else if (type === 'html') {
+                const div = document.createElement('div');
+                div.innerHTML = content;
+                return div;
+            } else {
+                const span = document.createElement('span');
+                span.textContent = content;
+                return span;
+            }
+        }
+
+        function selectAnswer(selectedId, btnElement) {
+            // Update selection UI
+            document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
+            btnElement.classList.add('selected');
+            
+            // Store answer
+            answers[currentQuestionIndex] = selectedId;
+            
+            // Auto-advance after short delay
+            setTimeout(() => {
+                if (currentQuestionIndex < questions.length - 1) {
+                    currentQuestionIndex++;
+                    renderQuestion();
+                } else {
+                    // Last question - show submit confirmation
+                    if (confirm('You have answered all questions. Submit quiz now?')) {
+                        completeTest(false);
+                    }
+                }
+            }, 300);
+        }
+
+        function submitQuizManually() {
+            const answered = Object.keys(answers).length;
+            const total = questions.length;
+            
+            if (confirm(`You have answered ${answered} of ${total} questions. Are you sure you want to submit?`)) {
+                completeTest(false);
+            }
+        }
+
+        // =====================================================
+        // COMPLETION
+        // =====================================================
+
+        async function completeTest(violation) {
+            if (testState === 'complete') return;
+            testState = 'complete';
+            
+            // Remove navigation warning
+            window.onbeforeunload = null;
+            
+            // Stop all timers
+            clearInterval(totalTimerId);
+            clearInterval(activeTimerId);
+            clearInterval(inactivityTimerId);
+
+            // Build answers array in order
             const answersArray = [];
             for (let i = 0; i < questions.length; i++) {
                 answersArray.push(answers[i] !== undefined ? answers[i] : null);
             }
-            
-            const result = await submitQuiz(attemptId, answersArray, isViolation, reason);
-            
+
+            // Submit to API
+            const result = await apiCall('quizzes.php', 'submit', {
+                attempt_id: attemptId,
+                answers: answersArray,
+                is_violation: violation,
+                violation_reason: violation ? 'Tab switch - exceeded 5 second limit' : null
+            });
+
+            // Calculate display values
+            const timeTaken = totalDuration - totalTimeLeft;
+            const answeredCount = Object.keys(answers).length;
+
+            // Show results
             if (result.success) {
-                if (isViolation) {
-                    alert('Quiz submitted due to violation. You received zero marks.');
-                }
-                window.location.href = `quiz-result.html?id=${attemptId}`;
+                const score = result.data.score;
+                const maxScore = result.data.max_score;
+                const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                
+                const scoreEl = document.getElementById('score-display');
+                scoreEl.textContent = `${score}/${maxScore}`;
+                scoreEl.className = 'score-display ' + (percentage >= 60 ? 'pass' : 'fail');
+                
+                document.getElementById('percentage-display').textContent = percentage + '%';
             } else {
-                alert('Failed to submit quiz: ' + result.message);
+                document.getElementById('score-display').textContent = violation ? '0/0' : 'Error';
+                document.getElementById('percentage-display').textContent = result.message;
             }
+
+            document.getElementById('time-stat').textContent = formatDuration(timeTaken);
+            document.getElementById('active-stat').textContent = formatDuration(activeTimeElapsed);
+            document.getElementById('answered-stat').textContent = `${answeredCount}/${questions.length}`;
+
+            // Show violation banner if applicable
+            if (violation || (result.data && result.data.is_violation)) {
+                document.getElementById('violation-banner').classList.remove('hidden');
+            }
+
+            switchScreen('result');
         }
-        
-        // Prevent back/refresh
-        window.onbeforeunload = function() {
-            return 'Are you sure you want to leave? Your quiz will be submitted.';
-        };
+
+        // =====================================================
+        // HELPERS
+        // =====================================================
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(el => el.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            switchScreen('error');
+            testState = 'error';
+        }
+
+        function formatDuration(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}m ${s}s`;
+        }
     </script>
 </body>
 </html>

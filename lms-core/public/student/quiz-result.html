@@ -4,159 +4,491 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Results - LMS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 20px;
+        }
+
+        h1, h2, h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .score-display {
+            font-size: 4rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .score-display.pass {
+            color: #22c55e;
+        }
+
+        .score-display.fail {
+            color: #ef4444;
+        }
+
+        .percentage {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .violation-banner {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .violation-banner svg {
+            flex-shrink: 0;
+        }
+
+        .question-review {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .question-header {
+            padding: 15px;
+            background: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .question-body {
+            padding: 15px;
+        }
+
+        .question-content {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .question-content img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+        }
+
+        .option {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .option.correct {
+            background: #dcfce7;
+            border-color: #22c55e;
+        }
+
+        .option.incorrect {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .option.selected {
+            border-width: 3px;
+        }
+
+        .option img {
+            max-height: 60px;
+            vertical-align: middle;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #4338ca;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #666;
+            text-decoration: none;
+            margin-bottom: 15px;
+        }
+
+        .back-link:hover {
+            color: #4f46e5;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>LMS - Student</h1>
-        <nav>
-            <a href="dashboard.html">Dashboard</a>
-            <a href="feedback.html">Feedback</a>
-            <a href="#" onclick="logout(); return false;">Logout</a>
-        </nav>
-    </header>
-    
     <div class="container">
-        <div id="alert-container"></div>
+        <a href="dashboard.html" class="back-link">&larr; Back to Dashboard</a>
         
-        <div class="card text-center">
-            <h2 id="quizTitle">Quiz Results</h2>
-            <div id="scoreSection" style="margin: 30px 0;">
-                <div class="loading"><div class="spinner"></div></div>
+        <div id="loading" class="card">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px; color: #666;">Loading results...</p>
             </div>
         </div>
-        
-        <div class="card">
-            <h3>Question Review</h3>
-            <div id="questionsReview">
-                <div class="loading"><div class="spinner"></div></div>
+
+        <div id="error" class="card hidden">
+            <h2>Error</h2>
+            <p id="error-message" style="color: #dc2626;"></p>
+            <div class="text-center" style="margin-top: 20px;">
+                <a href="dashboard.html" class="btn">Back to Dashboard</a>
             </div>
         </div>
-        
-        <div class="text-center mt-20">
-            <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+
+        <div id="results" class="hidden">
+            <!-- Score Card -->
+            <div class="card">
+                <h1 id="quiz-title" style="text-align: center;">Quiz Results</h1>
+                <p id="concept-title" style="text-align: center; color: #666;"></p>
+                
+                <div class="score-display" id="score-display">0/0</div>
+                <div class="percentage" id="percentage-display">0%</div>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Started</div>
+                        <div class="stat-value" id="start-time">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Submitted</div>
+                        <div class="stat-value" id="submit-time">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Duration</div>
+                        <div class="stat-value" id="duration">-</div>
+                    </div>
+                </div>
+                
+                <div id="violation-banner" class="violation-banner hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div>
+                        <strong>QUIZ VIOLATION</strong><br>
+                        <span id="violation-reason">Tab switch detected during quiz. Session was flagged and zero marks awarded.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Review -->
+            <div class="card">
+                <h2>Question Review</h2>
+                <div id="questions-review"></div>
+            </div>
+
+            <div class="text-center">
+                <a href="dashboard.html" class="btn">Back to Dashboard</a>
+            </div>
         </div>
     </div>
-    
-    <script src="../assets/js/app.js"></script>
+
     <script>
-        let currentUser = null;
+        const API_BASE = '../api';
         
-        (async () => {
-            currentUser = await requireAuth(['student']);
-            if (!currentUser) return;
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const attemptId = urlParams.get('id');
             
-            const attemptId = getUrlParam('id');
             if (!attemptId) {
-                window.location.href = 'dashboard.html';
+                showError('No attempt ID provided');
                 return;
             }
             
-            loadResults(attemptId);
-        })();
-        
-        async function loadResults(attemptId) {
-            const result = await getMyResults(attemptId);
-            
-            if (!result.success) {
-                document.getElementById('scoreSection').innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
-                return;
-            }
-            
-            const data = result.data;
-            
-            document.getElementById('quizTitle').textContent = data.quiz_title;
-            
-            // Score section
-            const scoreColor = data.percentage >= 60 ? '#27ae60' : '#e74c3c';
-            let scoreHtml = `
-                <div style="font-size: 3rem; font-weight: bold; color: ${scoreColor};">
-                    ${data.score}/${data.max_score}
-                </div>
-                <div style="font-size: 1.5rem; color: #666;">${data.percentage}%</div>
-            `;
-            
-            if (data.is_violation) {
-                scoreHtml += `
-                    <div class="alert alert-danger" style="margin-top: 20px;">
-                        <strong>Violation Detected</strong><br>
-                        ${data.violation_reason || 'Tab switch detected during quiz'}
-                    </div>
-                `;
-            }
-            
-            document.getElementById('scoreSection').innerHTML = scoreHtml;
-            
-            // Questions review
-            let questionsHtml = '';
-            
-            data.results.forEach((r, index) => {
-                const isCorrect = r.is_correct;
-                const borderColor = isCorrect ? '#27ae60' : '#e74c3c';
+            try {
+                // Check auth
+                const authResult = await apiCall('auth.php', 'me');
+                if (!authResult.success) {
+                    window.location.href = '../login.html';
+                    return;
+                }
                 
-                questionsHtml += `
-                    <div class="quiz-question" style="border-left: 4px solid ${borderColor};">
-                        <div class="flex-between">
-                            <span class="question-number">Question ${index + 1}</span>
+                // Get results
+                const result = await apiCall('quizzes.php', 'my-results', { attempt_id: attemptId });
+                
+                if (!result.success) {
+                    showError(result.message);
+                    return;
+                }
+                
+                displayResults(result.data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to load results');
+            }
+        });
+        
+        async function apiCall(endpoint, action, data = {}) {
+            const url = `${API_BASE}/${endpoint}?action=${action}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return await response.json();
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+            document.getElementById('error-message').textContent = message;
+        }
+        
+        function displayResults(data) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            
+            // Title
+            document.getElementById('quiz-title').textContent = data.quiz_title || 'Quiz Results';
+            document.getElementById('concept-title').textContent = data.concept_title || '';
+            
+            // Score
+            const scoreEl = document.getElementById('score-display');
+            scoreEl.textContent = `${data.score}/${data.max_score}`;
+            scoreEl.className = 'score-display ' + (data.percentage >= 60 ? 'pass' : 'fail');
+            
+            document.getElementById('percentage-display').textContent = data.percentage + '%';
+            
+            // Times
+            document.getElementById('start-time').textContent = formatTime(data.started_at);
+            document.getElementById('submit-time').textContent = formatTime(data.submitted_at);
+            
+            // Calculate duration
+            if (data.started_at && data.submitted_at) {
+                const start = new Date(data.started_at);
+                const end = new Date(data.submitted_at);
+                const diff = Math.floor((end - start) / 1000);
+                document.getElementById('duration').textContent = formatDuration(diff);
+            }
+            
+            // Violation
+            if (data.is_violation) {
+                document.getElementById('violation-banner').classList.remove('hidden');
+                if (data.violation_reason) {
+                    document.getElementById('violation-reason').textContent = data.violation_reason;
+                }
+            }
+            
+            // Questions Review
+            renderQuestionsReview(data.results);
+        }
+        
+        function renderQuestionsReview(results) {
+            const container = document.getElementById('questions-review');
+            let html = '';
+            
+            results.forEach((r, index) => {
+                const isCorrect = r.is_correct;
+                
+                html += `
+                    <div class="question-review">
+                        <div class="question-header">
+                            <span>Question ${index + 1}</span>
                             ${isCorrect 
                                 ? '<span class="badge badge-success">Correct</span>'
                                 : '<span class="badge badge-danger">Incorrect</span>'
                             }
                         </div>
-                        <div class="question-content">
+                        <div class="question-body">
+                            <div class="question-content">
+                                ${renderContent(r.question.type, r.question.content, r.question.question_text)}
+                            </div>
+                            <div class="options">
                 `;
                 
-                // Render question
-                const q = r.question;
-                if (q.type === 'image') {
-                    questionsHtml += `<img src="${q.content}" alt="Question">`;
-                    if (q.question_text) questionsHtml += `<p>${q.question_text}</p>`;
-                } else if (q.type === 'html') {
-                    questionsHtml += q.content;
-                    if (q.question_text) questionsHtml += `<p>${q.question_text}</p>`;
-                } else {
-                    questionsHtml += `<p>${escapeHtml(q.content)}</p>`;
-                }
-                
-                questionsHtml += '</div><div class="options">';
-                
-                // Render options with correct/incorrect highlighting
-                q.options.forEach((opt, optIndex) => {
-                    let optionClass = 'quiz-option';
-                    if (optIndex === r.correct_answer) {
-                        optionClass += ' correct';
-                    } else if (optIndex === r.student_answer && !isCorrect) {
-                        optionClass += ' incorrect';
-                    }
+                r.question.options.forEach((opt, optIdx) => {
+                    let classes = 'option';
+                    if (optIdx === r.correct_answer) classes += ' correct';
+                    if (optIdx === r.student_answer && !isCorrect) classes += ' incorrect';
+                    if (optIdx === r.student_answer) classes += ' selected';
                     
-                    questionsHtml += `<div class="${optionClass}">`;
-                    
-                    if (opt.type === 'image') {
-                        questionsHtml += `<img src="${opt.content}" alt="Option" style="max-height: 80px;">`;
-                    } else if (opt.type === 'html') {
-                        questionsHtml += opt.content;
-                    } else {
-                        questionsHtml += escapeHtml(opt.content);
-                    }
-                    
-                    if (optIndex === r.correct_answer) {
-                        questionsHtml += ' <strong>(Correct Answer)</strong>';
-                    }
-                    if (optIndex === r.student_answer) {
-                        questionsHtml += ' <em>(Your Answer)</em>';
-                    }
-                    
-                    questionsHtml += '</div>';
+                    html += `
+                        <div class="${classes}">
+                            ${renderOptionContent(opt.type, opt.content)}
+                            ${optIdx === r.correct_answer ? ' <strong>(Correct)</strong>' : ''}
+                            ${optIdx === r.student_answer ? ' <em>(Your answer)</em>' : ''}
+                        </div>
+                    `;
                 });
                 
                 if (r.student_answer === null) {
-                    questionsHtml += '<p style="color: #e74c3c;"><em>Not answered</em></p>';
+                    html += '<div class="option" style="color: #999; font-style: italic;">Not answered</div>';
                 }
                 
-                questionsHtml += '</div></div>';
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
             });
             
-            document.getElementById('questionsReview').innerHTML = questionsHtml;
+            container.innerHTML = html;
+        }
+        
+        function renderContent(type, content, questionText) {
+            let html = '';
+            
+            if (questionText) {
+                html += `<p>${escapeHtml(questionText)}</p>`;
+            }
+            
+            if (type === 'image') {
+                html += `<img src="${content}" alt="Question">`;
+            } else if (type === 'html') {
+                html += content;
+            } else {
+                if (!questionText) {
+                    html += `<p>${escapeHtml(content)}</p>`;
+                }
+            }
+            
+            return html;
+        }
+        
+        function renderOptionContent(type, content) {
+            if (type === 'image') {
+                return `<img src="${content}" alt="Option">`;
+            } else if (type === 'html') {
+                return content;
+            } else {
+                return escapeHtml(content);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function formatDuration(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}m ${s}s`;
         }
     </script>
 </body>
