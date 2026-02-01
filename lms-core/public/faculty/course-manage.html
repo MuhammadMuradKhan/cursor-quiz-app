@@ -80,6 +80,157 @@
         </div>
     </div>
     
+    <!-- Quiz Create Modal -->
+    <div id="quizModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Quiz</h3>
+                <span class="modal-close" onclick="closeQuizModal()">&times;</span>
+            </div>
+            <form id="quizForm" onsubmit="submitQuizForm(event)">
+                <input type="hidden" id="quizConceptId" name="concept_id">
+                
+                <div class="form-group">
+                    <label for="quizTitle">Quiz Title *</label>
+                    <input type="text" id="quizTitle" name="title" class="form-control" required placeholder="e.g., Week 1 Quiz - Introduction">
+                </div>
+                
+                <div class="form-group">
+                    <label for="quizNumQuestions">Number of Questions *</label>
+                    <input type="number" id="quizNumQuestions" name="num_questions" class="form-control" min="1" required placeholder="e.g., 10">
+                    <small id="availableQuestionsInfo" style="color: #666;"></small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quizDuration">Duration (minutes) *</label>
+                    <input type="number" id="quizDuration" name="duration_minutes" class="form-control" min="1" value="10" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quizStartTime">Start Time *</label>
+                    <input type="datetime-local" id="quizStartTime" name="start_time" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quizEndTime">End Time *</label>
+                    <input type="datetime-local" id="quizEndTime" name="end_time" class="form-control" required>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">Create Quiz</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeQuizModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Question Create Modal -->
+    <div id="questionModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Add New Question</h3>
+                <span class="modal-close" onclick="closeQuestionModal()">&times;</span>
+            </div>
+            <form id="questionForm" onsubmit="submitQuestionForm(event)">
+                <input type="hidden" id="questionConceptId" name="concept_id">
+                
+                <div class="form-group">
+                    <label for="questionType">Question Type *</label>
+                    <select id="questionType" name="type" class="form-control" required>
+                        <option value="text">Text</option>
+                        <option value="html">HTML (styled)</option>
+                        <option value="image">Image URL</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="questionContent">Question Content *</label>
+                    <textarea id="questionContent" name="content" class="form-control" rows="3" required placeholder="Enter question text, HTML, or image URL"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="questionDifficulty">Difficulty *</label>
+                    <select id="questionDifficulty" name="difficulty" class="form-control" required>
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Options * (minimum 2)</label>
+                    <div id="optionsContainer">
+                        <div class="option-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="radio" name="correctAnswer" value="0" checked>
+                            <input type="text" class="form-control option-input" placeholder="Option 1 (correct)" required style="flex: 1;">
+                        </div>
+                        <div class="option-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="radio" name="correctAnswer" value="1">
+                            <input type="text" class="form-control option-input" placeholder="Option 2" required style="flex: 1;">
+                        </div>
+                        <div class="option-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="radio" name="correctAnswer" value="2">
+                            <input type="text" class="form-control option-input" placeholder="Option 3 (optional)" style="flex: 1;">
+                        </div>
+                        <div class="option-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="radio" name="correctAnswer" value="3">
+                            <input type="text" class="form-control option-input" placeholder="Option 4 (optional)" style="flex: 1;">
+                        </div>
+                    </div>
+                    <small style="color: #666;">Select the radio button next to the correct answer</small>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">Add Question</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeQuestionModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .modal-header h3 {
+            margin: 0;
+        }
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+    </style>
+    
     <script src="../assets/js/app.js"></script>
     <script>
         let currentUser = null;
@@ -388,41 +539,64 @@
         }
         
         function showAddQuestionForm(conceptId) {
-            const content = prompt('Enter question text:');
-            if (!content) return;
+            document.getElementById('questionConceptId').value = conceptId;
+            document.getElementById('questionForm').reset();
+            document.getElementById('questionConceptId').value = conceptId;
+            document.getElementById('questionModal').style.display = 'flex';
+        }
+        
+        function closeQuestionModal() {
+            document.getElementById('questionModal').style.display = 'none';
+        }
+        
+        async function submitQuestionForm(event) {
+            event.preventDefault();
             
+            const conceptId = document.getElementById('questionConceptId').value;
+            const type = document.getElementById('questionType').value;
+            const content = document.getElementById('questionContent').value;
+            const difficulty = document.getElementById('questionDifficulty').value;
+            const correctAnswer = parseInt(document.querySelector('input[name="correctAnswer"]:checked').value);
+            
+            // Gather options
+            const optionInputs = document.querySelectorAll('.option-input');
             const options = [];
-            for (let i = 0; i < 4; i++) {
-                const opt = prompt(`Enter option ${i + 1}:`);
-                if (opt) {
-                    options.push({ id: i, type: 'text', content: opt });
+            
+            optionInputs.forEach((input, i) => {
+                if (input.value.trim()) {
+                    options.push({
+                        id: i,
+                        type: 'text',
+                        content: input.value.trim()
+                    });
                 }
-            }
+            });
             
             if (options.length < 2) {
-                alert('Please provide at least 2 options');
+                showAlert('Please provide at least 2 options', 'danger');
                 return;
             }
             
-            const correctAnswer = parseInt(prompt(`Enter correct answer (0-${options.length - 1}):`));
-            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
-                alert('Invalid correct answer');
+            if (correctAnswer >= options.length) {
+                showAlert('Please select a valid correct answer', 'danger');
                 return;
             }
             
-            const difficulty = prompt('Enter difficulty (low, medium, high):') || 'medium';
-            
-            createQuestion({
-                concept_id: conceptId,
-                type: 'text',
+            const result = await createQuestion({
+                concept_id: parseInt(conceptId),
+                type: type,
                 content: content,
                 options: options,
                 correct_answer: correctAnswer,
                 difficulty: difficulty
-            }).then(result => {
-                showAlert(result.message, result.success ? 'success' : 'danger');
-                if (result.success) loadQuestions();
             });
+            
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            
+            if (result.success) {
+                closeQuestionModal();
+                loadQuestions();
+            }
         }
         
         async function toggleQ(questionId) {
@@ -489,31 +663,74 @@
             container.innerHTML = html;
         }
         
-        function showCreateQuizForm(conceptId) {
-            const title = prompt('Enter quiz title:');
-            if (!title) return;
+        async function showCreateQuizForm(conceptId) {
+            // First, load the question count for this concept
+            const result = await getQuestions(conceptId);
+            const questionCount = result.success ? result.data.length : 0;
             
-            const numQuestions = parseInt(prompt('Number of questions:'));
-            if (!numQuestions || numQuestions < 1) return;
+            document.getElementById('quizConceptId').value = conceptId;
+            document.getElementById('quizForm').reset();
+            document.getElementById('quizConceptId').value = conceptId;
+            document.getElementById('availableQuestionsInfo').textContent = `Available questions in this concept: ${questionCount}`;
+            document.getElementById('quizNumQuestions').max = questionCount;
             
-            const startTime = prompt('Start time (YYYY-MM-DD HH:MM):');
-            const endTime = prompt('End time (YYYY-MM-DD HH:MM):');
+            // Set default times (start: now, end: 1 week from now)
+            const now = new Date();
+            const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
             
-            if (!startTime || !endTime) return;
+            document.getElementById('quizStartTime').value = formatDateTimeLocal(now);
+            document.getElementById('quizEndTime').value = formatDateTimeLocal(oneWeekLater);
             
-            const duration = parseInt(prompt('Duration in minutes (default 10):')) || 10;
+            document.getElementById('quizModal').style.display = 'flex';
+        }
+        
+        function closeQuizModal() {
+            document.getElementById('quizModal').style.display = 'none';
+        }
+        
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        async function submitQuizForm(event) {
+            event.preventDefault();
             
-            createQuiz({
-                concept_id: conceptId,
+            const conceptId = document.getElementById('quizConceptId').value;
+            const title = document.getElementById('quizTitle').value;
+            const numQuestions = parseInt(document.getElementById('quizNumQuestions').value);
+            const duration = parseInt(document.getElementById('quizDuration').value);
+            const startTime = document.getElementById('quizStartTime').value;
+            const endTime = document.getElementById('quizEndTime').value;
+            
+            if (!title || !numQuestions || !startTime || !endTime) {
+                showAlert('Please fill all required fields', 'danger');
+                return;
+            }
+            
+            // Format datetime for API (replace 'T' with space)
+            const formattedStartTime = startTime.replace('T', ' ');
+            const formattedEndTime = endTime.replace('T', ' ');
+            
+            const result = await createQuiz({
+                concept_id: parseInt(conceptId),
                 title: title,
                 num_questions: numQuestions,
-                start_time: startTime,
-                end_time: endTime,
+                start_time: formattedStartTime,
+                end_time: formattedEndTime,
                 duration_minutes: duration
-            }).then(result => {
-                showAlert(result.message, result.success ? 'success' : 'danger');
-                if (result.success) loadQuizzes();
             });
+            
+            showAlert(result.message, result.success ? 'success' : 'danger');
+            
+            if (result.success) {
+                closeQuizModal();
+                loadQuizzes();
+            }
         }
         
         async function loadLeaderboard() {

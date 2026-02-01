@@ -182,8 +182,11 @@ async function getMyEnrollments() {
 // QUIZ FUNCTIONS
 // =====================================================
 
-async function getQuestions(conceptId) {
-    return await apiCall('quizzes.php', 'questions', { concept_id: conceptId });
+async function getQuestions(conceptId, includeInactive = false) {
+    return await apiCall('quizzes.php', 'questions', { 
+        concept_id: conceptId, 
+        include_inactive: includeInactive ? 'true' : 'false' 
+    });
 }
 
 async function createQuestion(data) {
