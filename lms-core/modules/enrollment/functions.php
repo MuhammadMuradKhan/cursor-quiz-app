@@ -157,7 +157,7 @@ function getEnrollmentsByStudent($studentId, $status = null) {
     
     $sql = "
         SELECT e.*, c.name as course_name, c.code as course_code, 
-               c.thumbnail, u.name as faculty_name
+               c.thumbnail, u.name as faculty_name, u.email as faculty_email
         FROM enrollments e
         JOIN courses c ON e.course_id = c.id
         JOIN users u ON c.faculty_id = u.id

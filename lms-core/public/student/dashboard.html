@@ -77,6 +77,7 @@
                             <div class="card-body">
                                 <h3>${escapeHtml(course.course_name)}</h3>
                                 <p>${escapeHtml(course.course_code)} - ${escapeHtml(course.faculty_name)}</p>
+                                <p style="font-size: 0.85rem; color: #666;"><a href="mailto:${course.faculty_email || ''}">${escapeHtml(course.faculty_email || '')}</a></p>
                                 ${statusBadge}
                                 ${course.status === 'approved' ? `
                                     <div style="margin-top: 10px;">
