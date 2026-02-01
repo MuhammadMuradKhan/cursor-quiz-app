@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "type": "text",
+    "content": "What is the capital of France?",
+    "options": [
+      { "id": 0, "type": "text", "content": "London" },
+      { "id": 1, "type": "text", "content": "Berlin" },
+      { "id": 2, "type": "text", "content": "Paris" },
+      { "id": 3, "type": "text", "content": "Madrid" }
+    ],
+    "correctAnswer": 2
+  },
+  {
+    "id": 2,
+    "type": "image",
+    "content": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/121px-Python-logo-notext.svg.png",
+    "questionText": "Which programming language is represented by this logo?",
+    "options": [
+      { "id": 0, "type": "text", "content": "Java" },
+      { "id": 1, "type": "text", "content": "Python" },
+      { "id": 2, "type": "text", "content": "PHP" },
+      { "id": 3, "type": "text", "content": "Ruby" }
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "id": 3,
+    "type": "html",
+    "content": "<div style='font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 5px;'>echo 'Hello World';</div>",
+    "questionText": "Which language uses this syntax to print output?",
+    "options": [
+      { "id": 0, "type": "html", "content": "<span style='color: #8892bf; font-weight: bold;'>PHP</span>" },
+      { "id": 1, "type": "html", "content": "<span style='color: #f7df1e; font-weight: bold; background: #333; padding: 2px;'>JavaScript</span>" },
+      { "id": 2, "type": "html", "content": "<span style='color: #3776ab; font-weight: bold;'>Python</span>" },
+      { "id": 3, "type": "html", "content": "<span style='color: #007396; font-weight: bold;'>Java</span>" }
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "id": 4,
+    "type": "text",
+    "content": "Select the option that is an IMAGE.",
+    "options": [
+      { "id": 0, "type": "text", "content": "This is text" },
+      { "id": 1, "type": "image", "content": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/50px-React-icon.svg.png" },
+      { "id": 2, "type": "html", "content": "<b>HTML Tag</b>" },
+      { "id": 3, "type": "text", "content": "Just text" }
+    ],
+    "correctAnswer": 1
+  }
+]
