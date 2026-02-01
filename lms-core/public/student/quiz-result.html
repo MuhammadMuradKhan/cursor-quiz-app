@@ -300,7 +300,7 @@
     </div>
 
     <script>
-        const API_BASE = '../api';
+        const API_BASE = '../../api';
         
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -315,7 +315,7 @@
                 // Check auth
                 const authResult = await apiCall('auth.php', 'me');
                 if (!authResult.success) {
-                    window.location.href = '../login.html';
+                    window.location.href = '../../login.html';
                     return;
                 }
                 

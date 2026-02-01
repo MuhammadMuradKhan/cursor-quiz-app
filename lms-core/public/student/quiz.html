@@ -400,7 +400,7 @@
         // STATE
         // =====================================================
         
-        const API_BASE = '../api';
+        const API_BASE = '../../api';
         
         let quizId = null;
         let attemptId = null;
@@ -455,7 +455,7 @@
                 // Check if user is authenticated
                 const authResult = await apiCall('auth.php', 'me');
                 if (!authResult.success) {
-                    window.location.href = '../login.html';
+                    window.location.href = '../../login.html';
                     return;
                 }
                 
