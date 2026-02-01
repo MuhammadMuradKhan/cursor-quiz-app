@@ -25,10 +25,13 @@ try {
     $password = 'Admin@123';
     $hash = password_hash($password, PASSWORD_BCRYPT);
     
-    // Update all users with the correct hash
-    $stmt = $pdo->prepare("UPDATE users SET password_hash = ?");
+    // Update all users with the correct hash AND unblock all users
+    $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, is_blocked = FALSE, blocked_until = NULL");
     $stmt->execute([$hash]);
     $count = $stmt->rowCount();
+    
+    // Clear login attempts table
+    $pdo->exec("TRUNCATE TABLE login_attempts");
     
     echo "<div class='success'>";
     echo "<strong>Success!</strong> Updated {$count} user passwords.";

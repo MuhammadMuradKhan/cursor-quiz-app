@@ -71,50 +71,18 @@ function registerUser($name, $email, $password, $role = 'student', $rollNo = nul
 function loginUser($email, $password) {
     $pdo = getDBConnection();
     
-    // Check if user is blocked
-    $blockStatus = checkLoginBlock($email);
-    if ($blockStatus['blocked']) {
-        return [
-            'success' => false,
-            'message' => 'Account temporarily blocked. Try again after ' . $blockStatus['minutes_remaining'] . ' minutes'
-        ];
-    }
-    
     // Get user
     $stmt = $pdo->prepare("
-        SELECT id, name, email, password_hash, role, roll_no, is_blocked, blocked_until 
+        SELECT id, name, email, password_hash, role, roll_no 
         FROM users 
         WHERE email = ? AND deleted_at IS NULL
     ");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     
-    // Get IP address
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    
     if (!$user || !password_verify($password, $user['password_hash'])) {
-        // Log failed attempt
-        logLoginAttempt($email, $ip, false);
-        
-        // Check if we should block
-        $attempts = getRecentFailedAttempts($email);
-        if ($attempts >= LOGIN_MAX_ATTEMPTS) {
-            blockUser($email);
-        }
-        
         return ['success' => false, 'message' => 'Invalid email or password'];
     }
-    
-    // Check if manually blocked
-    if ($user['is_blocked'] && $user['blocked_until'] && strtotime($user['blocked_until']) > time()) {
-        return ['success' => false, 'message' => 'Account is blocked'];
-    }
-    
-    // Log successful attempt
-    logLoginAttempt($email, $ip, true);
-    
-    // Clear any blocks
-    clearUserBlock($email);
     
     // Start session
     initSession();
