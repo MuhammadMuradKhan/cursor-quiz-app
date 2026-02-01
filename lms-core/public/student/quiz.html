@@ -401,6 +401,7 @@
         // =====================================================
         
         const API_BASE = '../../api';
+        const TAB_SWITCH_LIMIT = 5; // 5 seconds limit for tab switch
         
         let quizId = null;
         let attemptId = null;
@@ -413,15 +414,18 @@
         let totalDuration = 600; // 10 minutes default
         let totalTimeLeft = 600;
         let activeTimeElapsed = 0;
-        let inactivityBucket = 5; // 5 seconds as per requirement
         let isViolation = false;
         let testStartTime = null;
+        
+        // Tab switch tracking (timestamp-based for reliability)
+        let tabSwitchStartTime = null; // When user left the tab
+        let isWindowActive = true;
+        let warningCountdown = TAB_SWITCH_LIMIT;
         
         // Interval IDs
         let totalTimerId = null;
         let activeTimerId = null;
-        let inactivityTimerId = null;
-        let isWindowActive = true;
+        let warningTimerId = null;
 
         // DOM Elements
         const screens = {
@@ -494,10 +498,10 @@
         function setupEventListeners() {
             document.getElementById('start-btn').addEventListener('click', startTest);
             
-            // Tab Visibility / Focus Tracking
+            // Tab Visibility / Focus Tracking - use visibilitychange as primary
             document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('blur', () => handleFocusChange(false));
-            window.addEventListener('focus', () => handleFocusChange(true));
+            window.addEventListener('blur', handleWindowBlur);
+            window.addEventListener('focus', handleWindowFocus);
         }
 
         // =====================================================
@@ -535,10 +539,11 @@
             currentQuestionIndex = 0;
             answers = {};
             activeTimeElapsed = 0;
-            inactivityBucket = 5;
             isViolation = false;
             testStartTime = Date.now();
             isWindowActive = true;
+            tabSwitchStartTime = null;
+            warningCountdown = TAB_SWITCH_LIMIT;
 
             updateTimerDisplays();
             renderQuestion();
@@ -571,50 +576,102 @@
             }, 1000);
         }
 
-        function handleFocusChange(focused) {
+        // =====================================================
+        // TAB SWITCH DETECTION (Timestamp-based)
+        // =====================================================
+
+        function handleWindowBlur() {
+            if (testState !== 'in-progress' || isViolation) return;
+            handleTabLeave();
+        }
+
+        function handleWindowFocus() {
             if (testState !== 'in-progress') return;
-            
-            isWindowActive = focused;
-            
-            if (focused) {
-                // User returned - stop inactivity countdown
-                clearInterval(inactivityTimerId);
-                inactivityTimerId = null;
-                document.getElementById('tab-warning').classList.add('hidden');
-                document.getElementById('inactivity-timer').classList.remove('danger');
-                // Reset inactivity bucket when user returns (if not violated)
-                if (!isViolation) {
-                    inactivityBucket = 5;
-                    updateTimerDisplays();
-                }
-            } else {
-                // User left - Start 5 second countdown
-                if (inactivityTimerId) return; // Already running
-                
-                document.getElementById('tab-warning').classList.remove('hidden');
-                document.getElementById('inactivity-timer').classList.add('danger');
-                
-                inactivityTimerId = setInterval(() => {
-                    inactivityBucket--;
-                    document.getElementById('warning-countdown').textContent = inactivityBucket;
-                    updateTimerDisplays();
-                    
-                    if (inactivityBucket <= 0) {
-                        // VIOLATION - Auto submit with zero marks
-                        isViolation = true;
-                        clearInterval(inactivityTimerId);
-                        completeTest(true);
-                    }
-                }, 1000);
-            }
+            handleTabReturn();
         }
 
         function handleVisibilityChange() {
+            if (testState !== 'in-progress') return;
+            
             if (document.hidden) {
-                handleFocusChange(false);
+                handleTabLeave();
             } else {
-                handleFocusChange(true);
+                handleTabReturn();
             }
+        }
+
+        function handleTabLeave() {
+            if (isViolation || tabSwitchStartTime !== null) return; // Already tracking or violated
+            
+            console.log('Tab switch detected - starting 5 second countdown');
+            
+            isWindowActive = false;
+            tabSwitchStartTime = Date.now();
+            warningCountdown = TAB_SWITCH_LIMIT;
+            
+            // Show warning
+            document.getElementById('tab-warning').classList.remove('hidden');
+            document.getElementById('inactivity-timer').classList.add('danger');
+            document.getElementById('warning-countdown').textContent = warningCountdown;
+            document.getElementById('inactivity-timer').textContent = `${warningCountdown}s`;
+            
+            // Start visual countdown (for when user is looking at another tab)
+            // This countdown is just visual - the real check is timestamp-based
+            clearInterval(warningTimerId);
+            warningTimerId = setInterval(() => {
+                warningCountdown--;
+                document.getElementById('warning-countdown').textContent = Math.max(0, warningCountdown);
+                document.getElementById('inactivity-timer').textContent = `${Math.max(0, warningCountdown)}s`;
+                
+                // Check if 5 seconds have passed using timestamp
+                if (tabSwitchStartTime !== null) {
+                    const elapsed = (Date.now() - tabSwitchStartTime) / 1000;
+                    if (elapsed >= TAB_SWITCH_LIMIT) {
+                        triggerViolation();
+                    }
+                }
+            }, 1000);
+        }
+
+        function handleTabReturn() {
+            if (isViolation) return; // Already violated, don't process
+            
+            if (tabSwitchStartTime !== null) {
+                // Calculate how long they were away
+                const elapsedSeconds = (Date.now() - tabSwitchStartTime) / 1000;
+                console.log(`User returned after ${elapsedSeconds.toFixed(1)} seconds`);
+                
+                if (elapsedSeconds >= TAB_SWITCH_LIMIT) {
+                    // They were away too long - VIOLATION
+                    triggerViolation();
+                    return;
+                }
+            }
+            
+            // User returned in time - reset
+            isWindowActive = true;
+            tabSwitchStartTime = null;
+            warningCountdown = TAB_SWITCH_LIMIT;
+            
+            // Hide warning
+            clearInterval(warningTimerId);
+            warningTimerId = null;
+            document.getElementById('tab-warning').classList.add('hidden');
+            document.getElementById('inactivity-timer').classList.remove('danger');
+            document.getElementById('inactivity-timer').textContent = `${TAB_SWITCH_LIMIT}s`;
+        }
+
+        function triggerViolation() {
+            if (isViolation || testState === 'complete') return;
+            
+            console.log('VIOLATION: Tab switch exceeded 5 seconds - auto-submitting with zero marks');
+            
+            isViolation = true;
+            clearInterval(warningTimerId);
+            warningTimerId = null;
+            
+            // Auto-submit with violation flag
+            completeTest(true);
         }
 
         function updateTimerDisplays() {
@@ -631,9 +688,6 @@
             } else if (totalTimeLeft <= 180) {
                 timerEl.classList.add('warning');
             }
-
-            // Inactivity display
-            document.getElementById('inactivity-timer').textContent = `${inactivityBucket}s`;
             
             // Progress bar
             const progress = ((currentQuestionIndex) / questions.length) * 100;
@@ -723,19 +777,25 @@
                     currentQuestionIndex++;
                     renderQuestion();
                 } else {
-                    // Last question - show submit confirmation
-                    if (confirm('You have answered all questions. Submit quiz now?')) {
-                        completeTest(false);
-                    }
+                    // Last question answered - auto submit
+                    console.log('Last question answered - submitting quiz');
+                    completeTest(false);
                 }
-            }, 300);
+            }, 400);
         }
 
         function submitQuizManually() {
             const answered = Object.keys(answers).length;
             const total = questions.length;
+            const unanswered = total - answered;
             
-            if (confirm(`You have answered ${answered} of ${total} questions. Are you sure you want to submit?`)) {
+            let message = `You have answered ${answered} of ${total} questions.`;
+            if (unanswered > 0) {
+                message += ` ${unanswered} question(s) will be marked as incorrect.`;
+            }
+            message += '\n\nAre you sure you want to submit?';
+            
+            if (confirm(message)) {
                 completeTest(false);
             }
         }
@@ -748,13 +808,15 @@
             if (testState === 'complete') return;
             testState = 'complete';
             
+            console.log('Completing test, violation:', violation);
+            
             // Remove navigation warning
             window.onbeforeunload = null;
             
             // Stop all timers
             clearInterval(totalTimerId);
             clearInterval(activeTimerId);
-            clearInterval(inactivityTimerId);
+            clearInterval(warningTimerId);
 
             // Build answers array in order
             const answersArray = [];
